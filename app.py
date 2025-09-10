@@ -4,12 +4,17 @@
 
 import streamlit as st
 import os
-from dotenv import load_dotenv
+# A lógica para carregar a chave da API depende do ambiente (local vs. deploy)
+try:
+    # Tenta carregar dos segredos do Streamlit (para deploy)
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+except (KeyError, FileNotFoundError):
+    # Se falhar, tenta carregar do arquivo .env (para desenvolvimento local)
+    from dotenv import load_dotenv
+    load_dotenv()
+
 from agent import EverpetzAgent
 import rag_manager
-
-# Carrega as variáveis de ambiente (OPENAI_API_KEY) do arquivo .env
-load_dotenv()
 
 # --- Constantes ---
 BOB_AVATAR_PATH = "assets/bob_avatar.jpg"
@@ -124,8 +129,16 @@ def manage_knowledge_base_sidebar():
 
 def main():
     """Função principal que executa a aplicação Streamlit."""
-    setup_page()
-    manage_knowledge_base_sidebar()
+    
+    # Verifica os parâmetros da URL para decidir se a barra lateral deve ser mostrada
+    query_params = st.query_params
+    is_embedded = "embed_chat" in query_params and query_params["embed_chat"] == "true"
+
+    # Se não estiver no modo 'embed_chat', mostra o título e a barra lateral de admin
+    if not is_embedded:
+        setup_page()
+        manage_knowledge_base_sidebar()
+    
     initialize_session_state()
     display_chat_history()
     handle_user_input()
