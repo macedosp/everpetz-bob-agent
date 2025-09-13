@@ -17,67 +17,29 @@ def configure_embed_mode():
     if not embed_mode:
         return False
     
-    # CSS agressivo para remover QUALQUER possibilidade de acesso ao menu
+    # --- CSS de Cirurgia de Precisão ---
+    # Esta é a regra mais importante, baseada na sua depuração.
     hide_streamlit_style = """
     <style>
-        /* Remove o iframe do Streamlit (logo e menu) */
-        iframe[title="streamlit_analytics2"] {display: none !important;}
-        
-        /* Remove TODOS os botões de menu */
-        #MainMenu {display: none !important;}
-        button[kind="header"] {display: none !important;}
-        div[data-testid="collapsedControl"] {display: none !important;}
-        button[title="View fullscreen"] {display: none !important;}
-        button[kind="headerNoPadding"] {display: none !important;}
-        
-        /* Remove a sidebar COMPLETAMENTE */
-        section[data-testid="stSidebar"] {
+        /* ALVO PRINCIPAL: Encontra qualquer botão que contenha o ícone ">>"
+        e remove-o da página. Esta é a solução definitiva.
+        */
+        button:has([data-testid="stIconMaterial"]) {
             display: none !important;
-            width: 0 !important;
-            min-width: 0 !important;
         }
-        
-        /* Remove o espaço da sidebar */
-        .css-1y4p8pa {max-width: 100% !important;}
-        .css-1y0tads {padding-top: 1rem !important;}
-        
-        /* Remove decorações e ícones */
-        [data-testid="stDecoration"] {display: none !important;}
-        [data-testid="stToolbar"] {display: none !important;}
-        
-        /* Remove o rodapé */
-        footer {display: none !important;}
-        .css-h5rgaw {display: none !important;}
-        
-        /* Remove "Made with Streamlit" */
-        .viewerBadge_container__r5tak {display: none !important;}
-        .viewerBadge_link__qRIHx {display: none !important;}
-        
-        /* Força largura total */
-        .main .block-container {
-            max-width: 100% !important;
-            padding: 1rem !important;
-        }
-        
-        /* Esconde elementos de desenvolvimento */
-        .stDeployButton {display: none !important;}
-        #stDecoration {display: none !important;}
-        
-        /* Remove animações de carregamento desnecessárias */
-        .stSpinner > div {border-color: #667eea !important;}
-        
-        /* Ajusta o chat */
-        .stChatFloatingInputContainer {
-            background-color: white !important;
-        }
-        
-        /* Remove qualquer elemento que possa abrir menu */
-        button:has(svg[width="18"]) {display: none !important;}
-        
-        /* Bloqueia teclas de atalho via CSS */
-        body {
-            user-select: text !important;
-            -webkit-user-select: text !important;
+
+        /* ALVOS SECUNDÁRIOS: Regras de segurança para garantir que, mesmo que o botão
+        escape, a própria barra lateral e outros elementos sejam escondidos.
+        */
+        [data-testid="stSidebar"],
+        [data-testid="collapsedControl"],
+        #MainMenu,
+        .stDeployButton,
+        .stToolbar,
+        footer,
+        header {
+            display: none !important;
+            visibility: hidden !important;
         }
     </style>
     """
