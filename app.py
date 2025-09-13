@@ -5,25 +5,32 @@ import streamlit as st
 import os
 from agent import EverpetzAgent
 import rag_manager
-from embed_config import configure_embed_mode, create_minimal_header
+from embed_config import configure_embed_mode, create_minimal_header, apply_embed_css
 
-# --- Detecta e configura o modo embed ANTES de qualquer outra coisa ---
+# 1) Detecta embed ANTES de qualquer UI
 embed_mode = configure_embed_mode()
 
-# --- Configuração da página baseada no modo ---
+# 2) set_page_config deve ser a PRIMEIRA chamada de UI
 if embed_mode:
     st.set_page_config(
         page_title="Bob - Assistente Everpetz",
         page_icon="🐾",
         layout="centered",
-        initial_sidebar_state="collapsed"  # Será completamente ocultada pelo CSS
+        initial_sidebar_state="collapsed",
+        menu_items={  # esconde itens do menu no embed
+            "Get Help": None,
+            "Report a Bug": None,
+            "About": None,
+        },
     )
+    # 3) CSS para remover sidebar e '>>'
+    apply_embed_css()
 else:
     st.set_page_config(
         page_title="Everpetz - Assistente Bob",
         page_icon="🐾",
         layout="wide",
-        initial_sidebar_state="auto"
+        initial_sidebar_state="auto",
     )
 
 # --- Lógica para carregar a chave da API ---
