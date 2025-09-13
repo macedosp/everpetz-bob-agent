@@ -4,23 +4,20 @@ import streamlit as st
 from typing import Optional
 
 def _get_query_param(name: str, default=None):
-    # Compatível com versões novas/antigas do Streamlit
+    """
+    Usa apenas st.query_params (API nova) para evitar avisos de depreciação.
+    Valores podem ser str (API nova) ou lista (compat em alguns contextos).
+    """
     try:
-        q = st.query_params  # Streamlit >= 1.29
-        if isinstance(q, dict):
-            v = q.get(name)
-            if v is None:
-                return default
-            if isinstance(v, list):
-                return v[0] if v else default
-            return v
+        qp = st.query_params  # API nova do Streamlit
+        v = qp.get(name, default)
+        if v is default:
+            return default
+        if isinstance(v, (list, tuple)):
+            return v[0] if v else default
+        return v
     except Exception:
-        pass
-    try:
-        q = st.experimental_get_query_params()  # versões mais antigas
-        v = q.get(name)
-        return v[0] if v else default
-    except Exception:
+        # Se algo muito incomum acontecer, apenas retorne o default
         return default
 
 def configure_embed_mode() -> bool:
