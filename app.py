@@ -1,5 +1,6 @@
 # app.py - Versão com suporte a embedding
 # Arquivo principal da aplicação Streamlit com configurações para iframe
+# Author: Vamilson Macedo
 
 import streamlit as st
 import os
