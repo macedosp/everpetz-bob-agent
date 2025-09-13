@@ -17,14 +17,9 @@ if embed_mode:
         page_icon="🐾",
         layout="centered",
         initial_sidebar_state="collapsed",
-        menu_items={  # esconde itens do menu no embed
-            "Get Help": None,
-            "Report a Bug": None,
-            "About": None,
-        },
+        menu_items={"Get Help": None, "Report a Bug": None, "About": None},
     )
-    # 3) CSS para remover sidebar e '>>'
-    apply_embed_css()
+    apply_embed_css()  # <- chama aqui
 else:
     st.set_page_config(
         page_title="Everpetz - Assistente Bob",

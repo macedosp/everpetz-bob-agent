@@ -1,6 +1,7 @@
 # embed_config.py
 import os
 import streamlit as st
+from typing import Optional
 
 def _get_query_param(name: str, default=None):
     # Compatível com versões novas/antigas do Streamlit
@@ -65,8 +66,8 @@ def apply_embed_css():
 
 def create_minimal_header(
     title: str = "Fale com o Bob",
-    subtitle: str | None = None,
-    avatar_url: str | None = None,
+    subtitle: Optional[str] = None,
+    avatar_url: Optional[str] = None,
 ):
     """
     Cabeçalho leve para o modo embed.
@@ -86,4 +87,3 @@ def create_minimal_header(
         """,
         unsafe_allow_html=True,
     )
-    
