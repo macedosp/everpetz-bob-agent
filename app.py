@@ -172,24 +172,29 @@ def manage_knowledge_base_sidebar():
 
 def main():
     """Função principal que roda a aplicação."""
-    setup_page()
-    initialize_session_state()
-    
-    # Só gerencia sidebar se não estiver em modo embed
-    if not embed_mode:
-        manage_knowledge_base_sidebar()
-    
-    display_chat_history()
-    handle_user_input()
-    
-    # Adiciona botão de reset compacto em modo embed
+    # Em modo embed, NÃO gerencia sidebar em hipótese alguma
     if embed_mode:
-        if st.button("🔄 Nova conversa", key="reset_embed"):
-            st.session_state.messages = [{
-                "role": "assistant",
-                "content": "Conversa reiniciada! Como posso ajudar você?"
-            }]
-            st.rerun()
+        setup_page()
+        initialize_session_state()
+        display_chat_history()
+        handle_user_input()
+        
+        # Botão de reset discreto no rodapé
+        col1, col2, col3 = st.columns([2, 1, 2])
+        with col2:
+            if st.button("🔄 Nova conversa", key="reset_embed", help="Iniciar uma nova conversa"):
+                st.session_state.messages = [{
+                    "role": "assistant",
+                    "content": "Conversa reiniciada! Como posso ajudar você?"
+                }]
+                st.rerun()
+    else:
+        # Modo normal com todas as funcionalidades
+        setup_page()
+        initialize_session_state()
+        manage_knowledge_base_sidebar()
+        display_chat_history()
+        handle_user_input()
 
 if __name__ == "__main__":
     main()
