@@ -1,9 +1,30 @@
-streamlit
+# requirements.txt - Versão Final e Completa para Dash
+
+# Core Dash e UI
+dash
+dash-bootstrap-components
+
+# Backend e IA
 openai
 langchain
 langchain-openai
 langchain-community
-faiss-cpu
-pypdf
-python-dotenv
+langchain-chroma
+langchain-text-splitters # <- Dependência do Langchain adicionada
 tiktoken
+python-dotenv
+
+# Processamento de Documentos
+pypdf
+
+# Banco de Dados
+SQLAlchemy
+
+# Cache e Background Callbacks
+cachetools
+diskcache
+psutil              # <- Dependência do Diskcache adicionada
+multiprocess        # <- Dependência do Diskcache adicionada
+
+# Fuso Horário (Timezone)
+tzdata              # <- Dependência do ZoneInfo adicionada

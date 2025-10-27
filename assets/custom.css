@@ -1,0 +1,32 @@
+/* Estilos para os RadioItems de cor */
+.color-selector .form-check {
+    padding-left: 0; /* Remove padding padrão */
+}
+
+.color-selector .form-check-input {
+    display: none; /* Esconde o botão de rádio real */
+}
+
+.color-selector .form-check-label {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%; /* Círculos */
+    cursor: pointer;
+    margin-right: 10px;
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease-in-out;
+}
+
+/* Estilo para quando o rádio está selecionado */
+.color-selector .form-check-input:checked + .form-check-label {
+    border-color: #333; /* Borda escura para indicar seleção */
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+/* Cores específicas da paleta */
+.color-selector input[value="#526A86"] + label { background-color: #526A86; }
+.color-selector input[value="#3C6584"] + label { background-color: #3C6584; }
+.color-selector input[value="#D1751C"] + label { background-color: #D1751C; }
+.color-selector input[value="#ED7700"] + label { background-color: #ED7700; }
+.color-selector input[value="#9B9B9C"] + label { background-color: #9B9B9C; }
