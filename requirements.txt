@@ -1,4 +1,4 @@
-# requirements.txt - Versão Final e Completa para Dash
+# requirements.txt - Versão Final para Docker/VPS
 
 # Core Dash e UI
 dash
@@ -7,24 +7,35 @@ dash-bootstrap-components
 # Backend e IA
 openai
 langchain
+langchain-core              # <- ADICIONADO: Essencial para os novos imports
 langchain-openai
 langchain-community
 langchain-chroma
-langchain-text-splitters # <- Dependência do Langchain adicionada
+langchain-text-splitters
 tiktoken
 python-dotenv
+pandas
 
-# Processamento de Documentos
+# Processamento de Documentos e Dados
 pypdf
+lxml
+requests
 
 # Banco de Dados
 SQLAlchemy
 
-# Cache e Background Callbacks
+# Cache e Utilitários de Sistema
 cachetools
 diskcache
-psutil              # <- Dependência do Diskcache adicionada
-multiprocess        # <- Dependência do Diskcache adicionada
+psutil                      # <- Importante manter para o Linux (funciona bem lá)
+multiprocess
 
-# Fuso Horário (Timezone)
-tzdata              # <- Dependência do ZoneInfo adicionada
+# Agendamento de Tarefas
+apscheduler
+
+# Fuso Horário
+tzdata
+
+# Autenticação
+bcrypt
+dash-auth

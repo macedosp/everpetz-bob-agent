@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  bob-app:
+    build: .
+    container_name: everpetz-bob
+    restart: always
+    ports:
+      - "8050:8050"
+    volumes:
+      # Mapeia pastas para não perder dados
+      - ./chroma_db:/app/chroma_db
+      - ./knowledge_base:/app/knowledge_base
+      - ./assets:/app/assets
+      - ./google-shopping.xml:/app/google-shopping.xml
+      # Se quiser persistir o banco SQLite fora do container, descomente:
+      # - ./bob_database.sqlite:/app/bob_database.sqlite
+    environment:
+      - TZ=America/Sao_Paulo
+      # Coloque sua chave aqui ou use um arquivo .env no servidor
+      - OPENAI_API_KEY=insira-sua-chave-no-servidor

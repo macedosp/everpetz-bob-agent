@@ -24,9 +24,60 @@
     box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
-/* Cores específicas da paleta */
-.color-selector input[value="#526A86"] + label { background-color: #526A86; }
-.color-selector input[value="#3C6584"] + label { background-color: #3C6584; }
-.color-selector input[value="#D1751C"] + label { background-color: #D1751C; }
-.color-selector input[value="#ED7700"] + label { background-color: #ED7700; }
-.color-selector input[value="#9B9B9C"] + label { background-color: #9B9B9C; }
+/* --- PALETA DE CORES EVERPETZ (SETTINGS) --- */
+
+/* Estilo base dos quadrados de seleção */
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%; /* Bolinhas arredondadas */
+    cursor: pointer;
+    margin-right: 10px;
+    border: 2px solid transparent;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+/* Quando selecionado, ganha uma borda escura e sombra */
+.color-selector input:checked + label {
+    border-color: #333;
+    transform: scale(1.1);
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+/* 1 - Transformative Teal */
+.color-selector input[value="#008080"] + label { background-color: #008080; }
+
+/* 2 - Petz Orange */
+.color-selector input[value="#fc8746"] + label { background-color: #fc8746; }
+
+/* 3 - Deepest Teal */
+.color-selector input[value="#006666"] + label { background-color: #006666; }
+
+/* 4 - Bright Orange */
+.color-selector input[value="#FFB070"] + label { background-color: #FFB070; }
+
+/* 5 - Transformative Wash (Adicionamos uma borda leve pois é muito claro) */
+.color-selector input[value="#E6F2F2"] + label { 
+    background-color: #E6F2F2; 
+    border: 1px solid #ccc; 
+}
+
+/* --- REGRA UNIVERSAL DE IMAGENS --- */
+/* Força qualquer imagem dentro de um Card ou do Chat a respeitar o limite */
+.card-body img, 
+#modal-chat-history-div img,
+#full-conversation-history img {
+    max-width: 100% !important;   /* OBRIGATÓRIO: Nunca excede a largura do pai */
+    height: auto !important;      /* OBRIGATÓRIO: Mantém a proporção */
+    border-radius: 8px;           /* Estética */
+    margin: 10px 0;               /* Espaçamento */
+    display: block;               /* Evita bugs de linha */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Regra extra para garantir que o Markdown não crie barras de rolagem horizontais no balão */
+.card-body {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
