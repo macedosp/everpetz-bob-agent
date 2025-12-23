@@ -3,9 +3,9 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, MetaData, Boolean, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
-from sqlalchemy import func, desc 
+from sqlalchemy import func, desc
 from zoneinfo import ZoneInfo
-import bcrypt 
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # --- Configuração do Banco de Dados ---
 DATABASE_FILE = "bob_database.sqlite"
@@ -92,11 +92,7 @@ def save_session_feedback(session_id: str, resolved: bool, score: int):
     finally:
         db.close()
 
-# --- [CORREÇÃO] FUNÇÃO RESTAURADA ---
 def get_conversation_by_session_id(session_id: str):
-    """
-    Busca todos os turnos de uma conversa específica, ordenados por tempo.
-    """
     db = SessionLocal()
     try:
         conversation_turns = (
@@ -126,16 +122,16 @@ def get_conversations_summary(limit: int = None, start_date: str = None, end_dat
             .group_by(Conversation.session_id)
             .order_by(desc("start_time"))
         )
-        
+
         if start_date and end_date:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
             end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
             query = query.filter(Conversation.timestamp >= start_dt)
             query = query.filter(Conversation.timestamp <= end_dt)
-        
+
         if limit and not (start_date and end_date):
             query = query.limit(limit)
-            
+
         summary_query = query.all()
         summary_list = []
         utc_zone = ZoneInfo("UTC")
@@ -167,7 +163,7 @@ def get_kpis():
     try:
         total_rated = db.query(func.count(ChatSession.session_id)).filter(ChatSession.is_resolved != None).scalar()
         resolved_count = db.query(func.count(ChatSession.session_id)).filter(ChatSession.is_resolved == True).scalar()
-        
+
         resolution_rate = 0
         if total_rated and total_rated > 0:
             resolution_rate = int((resolved_count / total_rated) * 100)
@@ -187,7 +183,7 @@ def count_sessions_today():
         midnight_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         midnight_utc = midnight_local.astimezone(ZoneInfo("UTC"))
         midnight_utc_naive = midnight_utc.replace(tzinfo=None)
-        
+
         count = db.query(func.count(Conversation.session_id.distinct())).filter(Conversation.timestamp >= midnight_utc_naive).scalar()
         return count or 0
     finally:
@@ -224,7 +220,7 @@ def set_setting(key: str, value: str):
     try:
         setting = db.query(Settings).filter(Settings.key == key).first()
         if setting: setting.value = value
-        else: 
+        else:
             new_setting = Settings(key=key, value=value)
             db.add(new_setting)
         db.commit()
@@ -240,19 +236,33 @@ def get_all_settings():
         db.close()
 
 def get_password_hash(password):
-    password_bytes = password.encode('utf-8')
-    hashed_bytes = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-    return hashed_bytes.decode('utf-8')
+    return generate_password_hash(password)
 
+# --- DEBUG: FUNÇÃO VERIFY_PASSWORD FALANTE ---
 def verify_password(plain_password, hashed_password):
+    print(f"\n--- DEBUG LOGIN ---")
+    print(f"Tentativa Senha: '{plain_password}'")
+    print(f"Hash no Banco:   '{str(hashed_password)[:20]}...'")
     try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-    except: return False
+        if not hashed_password:
+            print("ERRO: Hash vazio!")
+            return False
+        result = check_password_hash(hashed_password, plain_password)
+        print(f"Resultado Check: {result}")
+        print("-------------------\n")
+        return result
+    except Exception as e:
+        print(f"ERRO EXCEÇÃO: {e}")
+        return False
 
 def get_user_by_email(email: str):
     db = SessionLocal()
     try:
-        return db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(User.email == email).first()
+        # Força o carregamento dos atributos antes de fechar a sessão
+        if user:
+            _ = user.hashed_password 
+        return user
     finally:
         db.close()
 

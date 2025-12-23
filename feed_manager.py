@@ -1,147 +1,85 @@
-# feed_manager.py
 import requests
 import xml.etree.ElementTree as ET
-from langchain_openai import OpenAIEmbeddings
-from langchain_chroma import Chroma
-from langchain_core.documents import Document 
 import os
+import re
 import database
-from datetime import datetime
+import rag_manager
+import logging
 
-# Configuração do ChromaDB
-CHROMA_DB_DIR = "chroma_db"
+logging.basicConfig(level=logging.INFO)
 
-def get_vector_store():
-    """Retorna a instância do banco vetorial."""
-    embedding_function = OpenAIEmbeddings(model="text-embedding-3-small")
-    return Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embedding_function)
+def clean_html(raw_html):
+    if not raw_html: return ""
+    cleanr = re.compile('<.*?>')
+    return re.sub(cleanr, '', raw_html)
 
-def strip_namespace(tag):
-    """Remove o namespace da tag (ex: {url}item -> item)."""
-    if '}' in tag:
-        return tag.split('}', 1)[1]
-    return tag
-
-def find_child_text_agnostic(parent, target_tag_name):
-    """
-    Procura o texto de um filho ignorando namespaces.
-    Ex: Se procuramos 'price', acha tanto 'price' quanto 'g:price'.
-    """
-    target_tag_name = target_tag_name.lower()
-    for child in parent:
-        tag_clean = strip_namespace(child.tag).lower()
-        if tag_clean == target_tag_name:
-            return child.text
-    return None
-
-def process_product_feed():
-    """
-    Busca o XML, processa os produtos (ignorando namespaces) e atualiza o ChromaDB.
-    """
-    feed_source = database.get_setting("product_feed_url")
-    
-    if not feed_source:
-        return False, "Fonte do feed não configurada."
-
-    print(f"\n[FEED] --- Iniciando processamento (Modo Universal) ---")
-    
-    xml_content = None
-
+def process_product_feed(override_url=None):
     try:
-        # 1. Obter Conteúdo (URL ou Local)
-        if feed_source.startswith("http"):
-            print("[FEED] Modo URL. Baixando...")
-            response = requests.get(feed_source, timeout=60)
-            response.raise_for_status()
-            xml_content = response.content
-        else:
-            print(f"[FEED] Modo Local: {feed_source}")
-            if not os.path.exists(feed_source):
-                return False, f"Arquivo não encontrado: {feed_source}"
-            
-            with open(feed_source, 'rb') as f:
-                xml_content = f.read()
+        url = override_url or database.get_setting("product_feed_url")
+        if not url: return False, "Nenhuma URL configurada."
 
-        # 2. Parse do XML
-        root = ET.fromstring(xml_content)
+        print(f"--- [V5 PRECISION RE-APPLY] Baixando feed: {url} ---")
         
-        documents = []
-        count_found = 0
-        count_ignored = 0
+        headers = {'User-Agent': 'Mozilla/5.0 (BobAgent/1.0)'}
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
         
-        print("[FEED] Varrendo estrutura XML...")
+        try:
+            root = ET.fromstring(response.content)
+        except ET.ParseError as e:
+            return False, f"Erro crítico de XML: {e}"
 
-        # 3. Iteração Universal (Ignora a estrutura de pastas do XML)
-        # Varre TODOS os elementos procurando por 'item' ou 'entry'
-        for element in root.iter():
-            tag_clean = strip_namespace(element.tag).lower()
-            
-            if tag_clean in ['item', 'entry']:
-                count_found += 1
+        products_text = []
+        count = 0
+        
+        # BUSCA DE PRECISÃO (Lógica V5)
+        for elem in root.iter():
+            if elem.tag.endswith('item') or elem.tag.endswith('entry'):
                 try:
-                    # Usa a função auxiliar para achar os campos, não importa o namespace
-                    title = find_child_text_agnostic(element, 'title') or "Sem Título"
-                    description = find_child_text_agnostic(element, 'description') or ""
-                    link = find_child_text_agnostic(element, 'link') or ""
-                    
-                    # Campos específicos (tenta variações comuns)
-                    price = find_child_text_agnostic(element, 'price') or find_child_text_agnostic(element, 'sale_price') or "Consulte"
-                    image_link = find_child_text_agnostic(element, 'image_link') or find_child_text_agnostic(element, 'link') or ""
-                    availability = find_child_text_agnostic(element, 'availability') or "in stock"
+                    title = "Produto sem nome"
+                    price = "Sob consulta"
+                    link = ""
+                    image = ""
+                    description = ""
 
-                    # --- FILTRO DE ESTOQUE ---
-                    avail_clean = str(availability).lower().strip()
-                    termos_positivos = ['in stock', 'in_stock', 'instock', 'em estoque', 'disponivel', 'yes', 'true']
-                    
-                    if avail_clean not in termos_positivos:
-                        count_ignored += 1
-                        continue
+                    for child in elem:
+                        tag = child.tag.lower()
+                        
+                        if tag.endswith('title'): 
+                            title = child.text
+                        elif tag.endswith('price') or tag.endswith('sale_price'): 
+                            price = child.text
+                        # AQUI ESTÁ A CORREÇÃO CRÍTICA
+                        elif 'image_link' in tag: 
+                            image = child.text
+                        elif tag.endswith('link') and 'image' not in tag: 
+                            link = child.text
+                        elif tag.endswith('description') or tag.endswith('summary'): 
+                            description = clean_html(child.text)
 
-                    # Conteúdo textual para a IA
-                    text_content = f"""
-                    PRODUTO: {title}
-                    PREÇO: {price}
-                    DESCRIÇÃO: {description}
-                    """
-                    
-                    metadata = {
-                        "source": "product_feed",
-                        "type": "product",
-                        "title": title,
-                        "price": price,
-                        "link": link,
-                        "image": image_link,
-                        "updated_at": datetime.now().isoformat()
-                    }
-                    
-                    doc = Document(page_content=text_content, metadata=metadata)
-                    documents.append(doc)
-
-                except Exception as e:
-                    print(f"[FEED] Erro ao ler item: {e}")
+                    entry = f"PRODUTO: {title}\nPREÇO: {price}\nLINK: {link}\nIMAGEM: {image}\nDETALHES: {description}\n---\n"
+                    products_text.append(entry)
+                    count += 1
+                except:
                     continue
 
-        print(f"[FEED] Tags de produto encontradas: {count_found}")
-        print(f"[FEED] Itens ignorados (sem estoque): {count_ignored}")
-        print(f"[FEED] Itens válidos para indexação: {len(documents)}")
+        if count == 0:
+            return False, "XML lido mas 0 itens encontrados."
 
-        if not documents:
-            return False, f"XML lido, {count_found} itens achados, mas 0 válidos. Verifique o estoque."
+        output_file = os.path.join(rag_manager.KNOWLEDGE_BASE_DIR, "feed_produtos_everpetz.txt")
+        if not os.path.exists(rag_manager.KNOWLEDGE_BASE_DIR):
+            os.makedirs(rag_manager.KNOWLEDGE_BASE_DIR)
 
-        # 4. Atualização do Banco
-        print(f"[FEED] Atualizando ChromaDB...")
-        vector_store = get_vector_store()
-        vector_store.add_documents(documents)
-        
-        database.set_setting("last_feed_update", datetime.now().strftime("%d/%m/%Y %H:%M"))
-        
-        msg = f"Sucesso! {len(documents)} produtos indexados."
-        print(f"[FEED] Concluído: {msg}")
-        return True, msg
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(f"CATÁLOGO V5 RESTAURADO - TOTAL: {count}\n\n")
+            f.write("\n".join(products_text))
+
+        print(f"--- SUCESSO V5: Arquivo salvo. Links corrigidos. ---")
+
+        rag_manager.process_knowledge_base()
+
+        return True, f"Sucesso! {count} produtos corrigidos."
 
     except Exception as e:
-        print(f"[FEED] Erro Fatal: {e}")
-        return False, f"Erro: {str(e)}"
-
-if __name__ == "__main__":
-    process_product_feed()
+        print(f"Erro Crítico V5: {e}")
+        return False, str(e)
