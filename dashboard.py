@@ -1,4 +1,5 @@
 # dashboard.py - VERSÃO V10 (INTERFACE REFINADA + VISUALIZAÇÃO DO FEED)
+# V10 Update Force
 from apscheduler.schedulers.background import BackgroundScheduler
 import feed_manager
 import dash
