@@ -1,4 +1,4 @@
-# dashboard.py - VERSÃO V9 (FINAL VERIFICADA)
+# dashboard.py - VERSÃO V10 (INTERFACE REFINADA + VISUALIZAÇÃO DO FEED)
 from apscheduler.schedulers.background import BackgroundScheduler
 import feed_manager
 import dash
@@ -453,12 +453,12 @@ sidebar = html.Div([
 
 ], style=SIDEBAR_STYLE, className="d-flex flex-column") # Flexbox para alinhar rodapé
 
-# --- Layout de Login (MARCADOR V9) ---
+# --- Layout de Login (MARCADOR V10) ---
 login_layout = dbc.Container([
     dbc.Row(
         dbc.Col(
             dbc.Card([
-                dbc.CardHeader(html.H4("Bob Admin - Login V9", className="text-center")),
+                dbc.CardHeader(html.H4("Bob Admin - Login V10", className="text-center")),
                 dbc.CardBody([
                     html.Div(id="login-alert-div"),
                     dbc.Label("E-mail"),
@@ -698,13 +698,61 @@ def delete_file(n):
     except Exception as e: return dbc.Alert(f"Erro: {e}", color="danger")
 
 @app.callback(Output("upload-feedback-div", "children", allow_duplicate=True), Input("process-kb-btn", "n_clicks"), prevent_initial_call=True)
-def process_kb(n): return dbc.Alert("Base processada!", color="success", duration=4000) if rag_manager.process_knowledge_base() else dbc.Alert("Nada para processar.", color="warning", duration=4000)
+def process_kb(n): 
+    # [CORREÇÃO V10.1] O Porteiro: Se n for None (botão acabou de nascer), não faz nada.
+    if not n: 
+        return no_update
+    
+    return dbc.Alert("Base processada!", color="success", duration=4000, is_open=True) if rag_manager.process_knowledge_base() else dbc.Alert("Nada para processar.", color="warning", duration=4000, is_open=True)
 
+# ==============================================================================
+# [MODIFICAÇÃO V10] Lógica de Exibição de Documentos + Feed
+# ==============================================================================
 @app.callback(Output("document-list-group", "children"), [Input("url", "pathname"), Input("upload-feedback-div", "children")])
 def update_docs(p, f):
     if p == "/base-de-conhecimento":
         if not os.path.exists(rag_manager.KNOWLEDGE_BASE_DIR): os.makedirs(rag_manager.KNOWLEDGE_BASE_DIR)
-        return [dbc.ListGroupItem([dbc.Row([dbc.Col(html.Div([html.I(className="bi bi-file-earmark-text-fill text-primary me-2"), file]), width=8), dbc.Col(dbc.Badge("Ativo", color="success"), width="auto"), dbc.Col(dbc.Button("🗑️", id={'type': 'delete-btn', 'index': file}, color="light", size="sm"), width="auto")], align="center")]) for file in os.listdir(rag_manager.KNOWLEDGE_BASE_DIR) if file.endswith((".pdf", ".docx", ".txt"))] or dbc.ListGroupItem("Nenhum documento.")
+        files = [f for f in os.listdir(rag_manager.KNOWLEDGE_BASE_DIR) if f.endswith((".pdf", ".docx", ".txt"))]
+        
+        items = []
+        for file in files:
+            # LÓGICA V10: Tratamento especial para o arquivo de Feed
+            if file == "feed_produtos_everpetz.txt":
+                # Pega a data de modificação para mostrar quando foi atualizado
+                mtime = os.path.getmtime(os.path.join(rag_manager.KNOWLEDGE_BASE_DIR, file))
+                dt_str = datetime.datetime.fromtimestamp(mtime).strftime('%d/%m/%Y %H:%M')
+                
+                items.append(dbc.ListGroupItem([
+                    dbc.Row([
+                        dbc.Col(html.Div([
+                            html.I(className="bi bi-globe2 text-info me-2"), # Ícone de Globo
+                            html.Span("Feed de Produtos (Automático)", className="fw-bold"),
+                            html.Br(),
+                            html.Small(f"Última atualização: {dt_str}", className="text-muted")
+                        ]), width=8),
+                        dbc.Col(dbc.Badge("Sistema", color="info"), width="auto"),
+                        # Sem botão de deletar para proteger o feed
+                    ], align="center")
+                ]))
+            else:
+                # Arquivos normais (PDF, DOCX)
+                items.append(dbc.ListGroupItem([
+                    dbc.Row([
+                        dbc.Col(html.Div([html.I(className="bi bi-file-earmark-text-fill text-primary me-2"), file]), width=8),
+                        dbc.Col(dbc.Badge("Ativo", color="success"), width="auto"),
+                        dbc.Col(dbc.Button("🗑️", id={'type': 'delete-btn', 'index': file}, color="light", size="sm"), width="auto")
+                    ], align="center")
+                ]))
+        
+        return items or dbc.ListGroupItem("Nenhum documento.")
+    return []
+
+# ==============================================================================
+# [MODIFICAÇÃO V10] Callback para limpar alertas ao trocar de página
+# ==============================================================================
+@app.callback(Output("upload-feedback-div", "children"), Input("url", "pathname"))
+def clear_alerts(pathname):
+    # Retorna lista vazia para limpar o container de alertas
     return []
 
 @app.callback(Output("stats-list-group", "children"), [Input("url", "pathname"), Input("upload-feedback-div", "children")])
@@ -803,7 +851,15 @@ def render_public_chat(hist): return [create_chat_bubble(m['role'], m['content']
 if __name__ == '__main__':
     if not os.path.exists('assets'): os.makedirs('assets')
     database.init_db()
+
+    # --- INÍCIO DA ADIÇÃO: AGENDADOR DE TAREFAS ---
+    # Configura o agendador para rodar em segundo plano
     scheduler = BackgroundScheduler()
+    # Adiciona a tarefa: rodar 'process_product_feed' a cada 24 horas
     scheduler.add_job(func=feed_manager.process_product_feed, trigger="interval", hours=24)
     scheduler.start()
-    app.run(host='0.0.0.0', port=8050, debug=False)
+    # --- FIM DA ADIÇÃO ---
+
+# MUDANÇA CRÍTICA: host='0.0.0.0' libera o acesso externo
+
+app.run(host='0.0.0.0', port=8050, debug=False)
