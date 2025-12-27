@@ -111,5 +111,5 @@ def get_retriever():
     if not os.path.exists(CHROMA_DB_DIR):
         return get_vector_store().as_retriever()
     vector_store = get_vector_store()
-    # K=5 para trazer variedade de produtos
-    return vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+    # K=10 para trazer variedade de produtos
+    return vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 10})
