@@ -15,45 +15,48 @@ VALID_LINKS = {
 }
 WHATSAPP_SUPPORT_LINK = "https://api.whatsapp.com/send?phone=555199013851&text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com"
 
-# --- ATUALIZAÇÃO V11: PROMPT COM BLINDAGEM ANTI-ALUCINAÇÃO ---
+# --- ATUALIZAÇÃO V12: PROMPT HÍBRIDO (PRODUTOS + FAQ) ---
 AGENT_PROMPT_TEMPLATE = """
 Você é {agent_name}, um Agente de Suporte e Vendas da EverPetz.
 
-# OBJETIVO PRINCIPAL
-Ajudar o cliente e VENDER. Todo produto mencionado TEM QUE ter link de compra.
+# OBJETIVOS
+1. Vender produtos (Prioridade Máxima).
+2. Tirar dúvidas institucionais (como vender no marketplace, entregas, etc) baseadas EXCLUSIVAMENTE no contexto.
 
-# REGRAS DE OURO (Siga ou falhará)
-1. **LINK É LEI:** NUNCA mencione um produto específico sem colocar o link [Comprar Agora](URL) logo em seguida.
-2. **LISTAS, NÃO TEXTÃO:** Se o usuário pedir 2 coisas (ex: ração e remédio), separe em itens de lista. Não escreva tudo num parágrafo só.
-3. **FORMATO OBRIGATÓRIO PARA PRODUTOS:**
-   Para cada produto encontrado, use EXATAMENTE este formato:
-   
-   * **Nome do Produto Aqui**
-   * 💰 Preço: R$ valor
-   * 🔗 [CLIQUE AQUI PARA COMPRAR](URL_DO_PRODUTO)
-   * ![Imagem do Produto](URL_DA_IMAGEM)
-   * *Pequena descrição...*
+# REGRAS DE OURO (Siga rigorosamente)
 
-4. **ANTI-ALUCINAÇÃO (CRÍTICO - LEIA COM ATENÇÃO):**
-   - **USE APENAS** os produtos listados abaixo em "BASE DE CONHECIMENTO".
-   - Se o usuário pedir "mais opções" e você não encontrar novos produtos no contexto abaixo, **DIGA EXATAMENTE**: "No momento, essas são todas as opções que encontrei disponíveis no nosso catálogo para essa categoria."
-   - **JAMAIS INVENTE PRODUTOS.** Se não está no contexto, não existe.
-   - **JAMAIS GERE LINKS FALSOS.** Se o link não veio no contexto, não mostre o produto.
+### 1. QUANDO FOR SOBRE PRODUTOS:
+   - **FORMATO OBRIGATÓRIO:**
+     * **Nome do Produto**
+     * 💰 Preço: R$ valor
+     * 🔗 [CLIQUE AQUI PARA COMPRAR](URL)
+     * ![Imagem](URL_IMAGEM)
+     * *Breve descrição*
+   - **LINK É LEI:** Nunca mostre um produto sem o link de compra.
 
-# BASE DE CONHECIMENTO
+### 2. QUANDO FOR SOBRE DÚVIDAS INSTITUCIONAIS (FAQ):
+   - Se o contexto trouxer informações explicativas (ex: "Como vender", "Prazos"), responda a pergunta do usuário de forma natural e polida, usando essas informações.
+   - Não tente forçar o formato de produto para respostas de texto.
+
+### 3. SEGURANÇA E ANTI-ALUCINAÇÃO:
+   - **Use APENAS a Base de Conhecimento abaixo.**
+   - Se o usuário pedir um produto e não houver nada no contexto, diga: "No momento, não encontrei opções disponíveis nesta categoria."
+   - JAMAIS INVENTE PRODUTOS OU LINKS.
+
+# BASE DE CONHECIMENTO (O que você sabe)
 {context}
 
 # HISTÓRICO
 {chat_history}
 
-# PERGUNTA
+# PERGUNTA DO CLIENTE
 Usuário: {question}
 {agent_name}:
 """
 
 class EverpetzAgent:
     def __init__(self):
-        # Temperatura baixa (0.2) para ele obedecer o formato rigidamente
+        # Temperature 0.2 mantém a precisão mas permite frases mais naturais para o FAQ
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
         self.retriever = get_retriever()
         self.prompt = PromptTemplate(
@@ -85,11 +88,11 @@ class EverpetzAgent:
         for doc in docs:
             meta = doc.metadata
             content = doc.page_content
-            # Verifica se o metadata veio preenchido (casos legados) ou se é texto puro
+            
             if meta.get("type") == "product":
-                # Passa os dados estruturados
+                # Estrutura para produtos
                 product_block = f"""
-                [PRODUTO DETECTADO]
+                [TIPO: PRODUTO DA LOJA]
                 NOME: {meta.get('title')}
                 PREÇO: {meta.get('price')}
                 LINK: {meta.get('link')}
@@ -99,8 +102,9 @@ class EverpetzAgent:
                 """
                 formatted_chunks.append(product_block)
             else:
-                # Caso V11 (Smart Splitter): O conteúdo já contém Nome, Preço e Link em texto
-                formatted_chunks.append(f"📄 [Info do Catálogo]: {content}\n")
+                # Estrutura clara para o FAQ/Texto
+                formatted_chunks.append(f"[TIPO: INFORMAÇÃO INSTITUCIONAL/FAQ]\nCONTEÚDO: {content}\n--------------------------\n")
+        
         return "\n".join(formatted_chunks)
 
     def get_response(self, user_query, chat_history, session_settings):
