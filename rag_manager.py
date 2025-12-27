@@ -112,4 +112,4 @@ def get_retriever():
         return get_vector_store().as_retriever()
     vector_store = get_vector_store()
     # K=10 para trazer variedade de produtos
-    return vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 10})
+    return vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 25})
