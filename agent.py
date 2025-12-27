@@ -15,6 +15,7 @@ VALID_LINKS = {
 }
 WHATSAPP_SUPPORT_LINK = "https://api.whatsapp.com/send?phone=555199013851&text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com"
 
+# --- ATUALIZAÇÃO V11: PROMPT COM BLINDAGEM ANTI-ALUCINAÇÃO ---
 AGENT_PROMPT_TEMPLATE = """
 Você é {agent_name}, um Agente de Suporte e Vendas da EverPetz.
 
@@ -33,7 +34,11 @@ Ajudar o cliente e VENDER. Todo produto mencionado TEM QUE ter link de compra.
    * ![Imagem do Produto](URL_DA_IMAGEM)
    * *Pequena descrição...*
 
-4. **NÃO INVENTE:** Se a URL não estiver no contexto, não sugira o produto.
+4. **ANTI-ALUCINAÇÃO (CRÍTICO - LEIA COM ATENÇÃO):**
+   - **USE APENAS** os produtos listados abaixo em "BASE DE CONHECIMENTO".
+   - Se o usuário pedir "mais opções" e você não encontrar novos produtos no contexto abaixo, **DIGA EXATAMENTE**: "No momento, essas são todas as opções que encontrei disponíveis no nosso catálogo para essa categoria."
+   - **JAMAIS INVENTE PRODUTOS.** Se não está no contexto, não existe.
+   - **JAMAIS GERE LINKS FALSOS.** Se o link não veio no contexto, não mostre o produto.
 
 # BASE DE CONHECIMENTO
 {context}
@@ -80,8 +85,9 @@ class EverpetzAgent:
         for doc in docs:
             meta = doc.metadata
             content = doc.page_content
+            # Verifica se o metadata veio preenchido (casos legados) ou se é texto puro
             if meta.get("type") == "product":
-                # Passa os dados brutos para o Prompt montar o visual
+                # Passa os dados estruturados
                 product_block = f"""
                 [PRODUTO DETECTADO]
                 NOME: {meta.get('title')}
@@ -93,7 +99,8 @@ class EverpetzAgent:
                 """
                 formatted_chunks.append(product_block)
             else:
-                formatted_chunks.append(f"📄 [Info]: {content}\n")
+                # Caso V11 (Smart Splitter): O conteúdo já contém Nome, Preço e Link em texto
+                formatted_chunks.append(f"📄 [Info do Catálogo]: {content}\n")
         return "\n".join(formatted_chunks)
 
     def get_response(self, user_query, chat_history, session_settings):
