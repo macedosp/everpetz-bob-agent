@@ -857,8 +857,8 @@ if __name__ == '__main__':
     # Configura o agendador para rodar em segundo plano
     scheduler = BackgroundScheduler()
     # Adiciona a tarefa: rodar 'process_product_feed' a cada 24 horas
-    scheduler.add_job(func=feed_manager.process_product_feed, trigger="interval", hours=24)
-    scheduler.start()
+    #scheduler.add_job(func=feed_manager.process_product_feed, trigger="interval", hours=24)
+    #scheduler.start()
     # --- FIM DA ADIÇÃO ---
 
 # MUDANÇA CRÍTICA: host='0.0.0.0' libera o acesso externo
