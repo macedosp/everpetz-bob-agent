@@ -487,7 +487,17 @@ def serve_layout():
         dcc.Loading(id="loading-feedback", type="default", children=html.Div(id="upload-feedback-div", style={'position': 'fixed', 'top': '10px', 'right': '10px', 'zIndex': 1050})),
         dcc.Store(id='signal-store'),
         html.Div(id="page-container")
-    ])
+    ],
+    # --- AQUI ESTÁ A CORREÇÃO DA BORDA BRANCA ---
+    style={
+        "margin": "0", 
+        "padding": "0", 
+        "width": "100%", 
+        "maxWidth": "100%",
+        "overflowX": "hidden" # Evita rolagem lateral se algo vazar
+    },
+    className="p-0 m-0" # Reforço extra (Bootstrap) para garantir padding 0
+    )
 app.layout = serve_layout
 
 # --- CALLBACKS DO ROTEADOR ---
