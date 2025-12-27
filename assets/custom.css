@@ -1,3 +1,26 @@
+/* --- RESET DE BORDAS PARA WIDGET (NOVO) --- */
+/* Remove a margem padrão do navegador e garante largura total */
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden; /* Evita rolagem lateral acidental */
+}
+
+/* Remove o padding lateral padrão dos containers do Bootstrap/Dash */
+.container, .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 100% !important;
+}
+
+/* Garante que o conteúdo do Dash ocupe 100% sem bordas */
+#_dash-app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 /* Estilos para os RadioItems de cor */
 .color-selector .form-check {
     padding-left: 0; /* Remove padding padrão */
