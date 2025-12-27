@@ -481,40 +481,22 @@ content = html.Div(id="page-content", style=CONTENT_STYLE)
 # --- LAYOUT GLOBAL (ROTEADOR) ---
 def serve_layout():
     return html.Div([
-        # --- INÍCIO DA CORREÇÃO: CSS INJETADO NA VEIA ---
-        html.Style("""
-            body, html {
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow-x: hidden !important;
-            }
-            /* Garante que containers do Bootstrap não tenham padding lateral */
-            .container, .container-fluid {
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-                margin: 0 !important;
-                max-width: 100% !important;
-            }
-        """),
-        # --- FIM DA CORREÇÃO ---
-
         dcc.Location(id="url"),
         # [MODIFICADO] storage_type='local' para evitar logout involuntário
         dcc.Store(id='session-store', storage_type='local'), 
         dcc.Loading(id="loading-feedback", type="default", children=html.Div(id="upload-feedback-div", style={'position': 'fixed', 'top': '10px', 'right': '10px', 'zIndex': 1050})),
         dcc.Store(id='signal-store'),
-        
-        # Container da página com largura forçada
-        html.Div(id="page-container", style={"width": "100%", "padding": "0", "margin": "0"})
+        html.Div(id="page-container")
     ],
-    # Estilos da Div Mestra
+    # --- AQUI ESTÁ A CORREÇÃO DA BORDA BRANCA ---
     style={
         "margin": "0", 
         "padding": "0", 
         "width": "100%", 
-        "overflowX": "hidden"
+        "maxWidth": "100%",
+        "overflowX": "hidden" # Evita rolagem lateral se algo vazar
     },
-    className="p-0 m-0"
+    className="p-0 m-0" # Reforço extra (Bootstrap) para garantir padding 0
     )
 app.layout = serve_layout
 
