@@ -1,12 +1,23 @@
-/* --- RESET DE BORDAS PARA WIDGET (NOVO) --- */
-/* Remove a margem padrão do navegador e garante largura total */
-body {
+/* --- RESET SUPREMO DE BORDAS (BLINDADO) --- */
+
+/* 1. Ataca HTML e BODY juntos para garantir que a janela toda zere */
+html, body {
     margin: 0 !important;
     padding: 0 !important;
-    overflow-x: hidden; /* Evita rolagem lateral acidental */
+    height: 100% !important;
+    width: 100% !important;
+    overflow-x: hidden; /* Evita rolagem lateral */
 }
 
-/* Remove o padding lateral padrão dos containers do Bootstrap/Dash */
+/* 2. Zera especificamente a DIV principal que vimos no seu dashboard.py */
+#page-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* 3. Remove padding dos containers padrão do Bootstrap */
 .container, .container-fluid {
     padding-left: 0 !important;
     padding-right: 0 !important;
@@ -15,45 +26,45 @@ body {
     max-width: 100% !important;
 }
 
-/* Garante que o conteúdo do Dash ocupe 100% sem bordas */
+/* 4. Garante que a raiz do Dash não crie espaço */
 #_dash-app-content {
     margin: 0 !important;
     padding: 0 !important;
 }
 
+/* ------------------------------------------------------- */
+/* --- CÓDIGO ORIGINAL MANTIDO ABAIXO --- */
+
 /* Estilos para os RadioItems de cor */
 .color-selector .form-check {
-    padding-left: 0; /* Remove padding padrão */
+    padding-left: 0;
 }
 
 .color-selector .form-check-input {
-    display: none; /* Esconde o botão de rádio real */
+    display: none;
 }
 
 .color-selector .form-check-label {
     display: inline-block;
     width: 30px;
     height: 30px;
-    border-radius: 50%; /* Círculos */
+    border-radius: 50%;
     cursor: pointer;
     margin-right: 10px;
     border: 2px solid transparent;
     transition: border-color 0.2s ease-in-out;
 }
 
-/* Estilo para quando o rádio está selecionado */
 .color-selector .form-check-input:checked + .form-check-label {
-    border-color: #333; /* Borda escura para indicar seleção */
+    border-color: #333;
     box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
-/* --- PALETA DE CORES EVERPETZ (SETTINGS) --- */
-
-/* Estilo base dos quadrados de seleção */
+/* --- PALETA DE CORES EVERPETZ --- */
 .color-swatch {
     width: 30px;
     height: 30px;
-    border-radius: 50%; /* Bolinhas arredondadas */
+    border-radius: 50%;
     cursor: pointer;
     margin-right: 10px;
     border: 2px solid transparent;
@@ -61,45 +72,33 @@ body {
     transition: all 0.2s;
 }
 
-/* Quando selecionado, ganha uma borda escura e sombra */
 .color-selector input:checked + label {
     border-color: #333;
     transform: scale(1.1);
     box-shadow: 0 0 5px rgba(0,0,0,0.3);
 }
 
-/* 1 - Transformative Teal */
 .color-selector input[value="#008080"] + label { background-color: #008080; }
-
-/* 2 - Petz Orange */
 .color-selector input[value="#fc8746"] + label { background-color: #fc8746; }
-
-/* 3 - Deepest Teal */
 .color-selector input[value="#006666"] + label { background-color: #006666; }
-
-/* 4 - Bright Orange */
 .color-selector input[value="#FFB070"] + label { background-color: #FFB070; }
-
-/* 5 - Transformative Wash (Adicionamos uma borda leve pois é muito claro) */
 .color-selector input[value="#E6F2F2"] + label { 
     background-color: #E6F2F2; 
     border: 1px solid #ccc; 
 }
 
 /* --- REGRA UNIVERSAL DE IMAGENS --- */
-/* Força qualquer imagem dentro de um Card ou do Chat a respeitar o limite */
 .card-body img, 
 #modal-chat-history-div img,
 #full-conversation-history img {
-    max-width: 100% !important;   /* OBRIGATÓRIO: Nunca excede a largura do pai */
-    height: auto !important;      /* OBRIGATÓRIO: Mantém a proporção */
-    border-radius: 8px;           /* Estética */
-    margin: 10px 0;               /* Espaçamento */
-    display: block;               /* Evita bugs de linha */
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px;
+    margin: 10px 0;
+    display: block;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* Regra extra para garantir que o Markdown não crie barras de rolagem horizontais no balão */
 .card-body {
     overflow-wrap: break-word;
     word-wrap: break-word;
