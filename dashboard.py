@@ -43,12 +43,24 @@ def create_chat_bubble(role, content, is_thinking=False):
     if role == 'user':
         bubble = dbc.Card(
             dbc.CardBody(dcc.Markdown(content), className="p-3"),
-            style={"backgroundColor": "#3C6584", "borderRadius": "15px 15px 0px 15px"},
+            # [COR] Mantendo o #008080 conforme sua última validação
+            style={"backgroundColor": "#008080", "borderRadius": "15px 15px 0px 15px"},
             inverse=True, className="shadow-sm border-0"
         )
         return dbc.Row(dbc.Col(bubble, width={"size": 9, "offset": 3}), className="g-0 mb-3 justify-content-end")
     else:
-        content_display = dbc.Spinner(size="sm", color="primary") if is_thinking else dcc.Markdown(content, dangerously_allow_html=False)
+        # Se estiver pensando, mostra o Spinner. Se não, mostra o Markdown.
+        if is_thinking:
+            content_display = dbc.Spinner(size="sm", color="primary")
+        else:
+            # [CORREÇÃO CRÍTICA AQUI]
+            # link_target="_blank" força os links a abrirem em nova aba
+            content_display = dcc.Markdown(
+                content, 
+                dangerously_allow_html=False,
+                link_target="_blank" 
+            )
+
         bubble = dbc.Card(
             dbc.CardBody(content_display, className="p-3"),
             color="white", className="shadow-sm border-0 text-dark",
@@ -57,7 +69,7 @@ def create_chat_bubble(role, content, is_thinking=False):
         return dbc.Row(dbc.Col(bubble, width=9), className="g-0 mb-3")
 
 # ==============================================================================
-# [ADICIONADO] LAYOUT DO WIDGET PÚBLICO (IDs Exclusivos 'public_')
+# [LAYOUT] WIDGET PÚBLICO - VISUAL "PREMIUM REFINADO" V13.5 (CORRIGIDO)
 # ==============================================================================
 widget_layout = html.Div([
     dcc.Interval(id='public_init_trigger', interval=1000, n_intervals=0, max_intervals=1),
@@ -65,57 +77,108 @@ widget_layout = html.Div([
     dcc.Store(id='public_session_id', data=None),
     dcc.Store(id='public_settings_store', data={}),
 
-    dbc.Card([
-        # 1. Cabeçalho (Clone do Admin)
-        dbc.CardHeader(
-            dbc.Row([
-                dbc.Col(html.Img(id="public_avatar", src=app.get_asset_url('bob_avatar.jpg'), className="rounded-circle border border-2 border-white", style={'width': '40px', 'height': '40px'}), width="auto"),
-                dbc.Col([
-                    html.H5("Bob", id="public_agent_name", className="mb-0 fw-bold text-white"),
-                    html.Small([html.I(className="bi bi-circle-fill text-success me-1", style={'fontSize':'8px'}), "Online"], className="text-white-50")
-                ], className="d-flex flex-column justify-content-center")
-            ], align="center", className="g-2"),
-            id="public_header",
-            style={"borderRadius": "0", "backgroundColor": "#526A86"}, # Cor padrão, será atualizada
-            className="border-0"
-        ),
+    # CONTAINER PRINCIPAL
+    dbc.Container(
+        dbc.Card([
+            
+            # 1. CABEÇALHO EXPANDIDO (Mais alto e imponente)
+            dbc.CardHeader(
+                dbc.Row([
+                    dbc.Col(html.Img(id="public_avatar", src=app.get_asset_url('bob_avatar.jpg'), className="rounded-circle border border-2 border-white shadow-sm", style={'width': '48px', 'height': '48px'}), width="auto"),
+                    dbc.Col([
+                        html.H5("Bob", id="public_agent_name", className="mb-0 fw-bold text-white", style={"fontSize": "1.1rem"}),
+                        html.Div([html.I(className="bi bi-circle-fill text-success me-1", style={'fontSize':'8px'}), "Online • Everpetz"], className="text-white-50 small")
+                    ], className="d-flex flex-column justify-content-center ps-2")
+                ], align="center", className="g-0 w-100"),
+                id="public_header",
+                # [DESIGN] 'py-4' aumenta a altura vertical conforme solicitado
+                className="text-white border-0 rounded-top-4 py-4 px-3",
+                style={"backgroundColor": "#526A86"} 
+            ),
 
-        # 2. Corpo do Chat
-        dbc.CardBody(
-            html.Div(id="public_chat_div", style={"minHeight": "100%"}),
-            style={"overflowY": "auto", "padding": "20px", "backgroundColor": "#f0f2f5", "flex": "1"}
-        ),
+            # 2. CORPO DO CHAT
+            dbc.CardBody(
+                html.Div(id="public_chat_div", style={"minHeight": "100%"}),
+                style={"overflowY": "auto", "padding": "15px 20px", "backgroundColor": "#f4f6f8", "flex": "1"}
+            ),
 
-        # 3. Rodapé (Clone do Admin com Pílulas)
-        dbc.CardFooter(html.Div([
-            # Sugestões (Pílulas)
-            html.Div([
-                dbc.Button("Como funciona?", id="public_quick_1", outline=True, color="secondary", size="sm", className="me-2 rounded-pill mb-2"),
-                dbc.Button("Quero vender", id="public_quick_2", outline=True, color="secondary", size="sm", className="me-2 rounded-pill mb-2"),
-                dbc.Button("Produtos para pets", id="public_quick_3", outline=True, color="secondary", size="sm", className="rounded-pill mb-2"),
-            ], className="text-center mb-2"),
+            # 3. RODAPÉ
+            dbc.CardFooter(html.Div([
+                
+                # A) Área das Pílulas (Sugestões) - Cores Sincronizadas
+                html.Div([
+                    dbc.Button(
+                        "Como funciona?", 
+                        id="public_quick_1", 
+                        outline=True, 
+                        size="sm", 
+                        # [DESIGN] Borda e texto na cor #526A86
+                        style={"borderColor": "#526A86", "color": "#526A86"},
+                        className="rounded-pill bg-white shadow-sm"
+                    ),
+                    dbc.Button(
+                        "Cadastre-se para comprar", 
+                        href="https://www.everpetzstore.com.br/register/buyer/",
+                        external_link=True, target="_blank", 
+                        outline=True, 
+                        size="sm", 
+                        # [DESIGN] Borda e texto na cor #526A86
+                        style={"borderColor": "#526A86", "color": "#526A86"},
+                        className="rounded-pill bg-white shadow-sm text-decoration-none"
+                    ),
+                ], className="d-flex justify-content-center gap-2 mb-3"),
 
-            # Barra de Input
-            dbc.Row([
-                dbc.Col([
-                    dbc.Button(html.I(className="bi bi-hand-thumbs-up"), id="public_like", color="link", className="text-muted fs-5 p-1"),
-                    dbc.Button(html.I(className="bi bi-hand-thumbs-down"), id="public_dislike", color="link", className="text-muted fs-5 p-1"),
-                ], width="auto", className="d-flex align-items-center pe-0"),
+                # B) Barra de Input + Feedback
+                dbc.Row([
+                    # Feedback
+                    dbc.Col([
+                        dbc.Button(html.I(className="bi bi-hand-thumbs-up"), id="public_like", color="link", className="text-muted p-1 border-0"),
+                        dbc.Button(html.I(className="bi bi-hand-thumbs-down"), id="public_dislike", color="link", className="text-muted p-1 border-0"),
+                    ], width="auto", className="d-flex align-items-center ps-1"),
 
-                dbc.Col(
-                    dbc.Input(id="public_input", placeholder="Digite sua mensagem...", n_submit=0, className="rounded-pill border-0 bg-light py-2"),
-                    className="px-2"
-                ),
+                    # Input
+                    dbc.Col(
+                        dbc.Input(
+                            id="public_input", 
+                            placeholder="Digite sua mensagem...", 
+                            n_submit=0, 
+                            autocomplete="off",
+                            className="border-0 bg-transparent shadow-none px-2"
+                        ),
+                        className="flex-grow-1"
+                    ),
 
-                dbc.Col(
-                    dbc.Button(html.I(className="bi bi-send-fill"), id="public_submit", color="primary", n_clicks=0, className="rounded-circle shadow-sm", style={'width': '40px', 'height': '40px'}),
-                    width="auto", className="ps-0"
+                    # Botão Enviar (Sincronizado)
+                    dbc.Col(
+                        dbc.Button(
+                            html.I(className="bi bi-send-fill"), 
+                            id="public_submit", 
+                            n_clicks=0, 
+                            className="rounded-circle shadow-sm d-flex align-items-center justify-content-center",
+                            # [CORREÇÃO CRÍTICA] Tudo dentro de 'style', removido o 'style_button'
+                            style={"backgroundColor": "#526A86", "borderColor": "#526A86", 'width': '35px', 'height': '35px'}
+                        ),
+                        width="auto", className="pe-1"
+                    )
+                ], align="center", className="g-0 bg-white p-1 rounded-pill border shadow-sm w-100 mb-2"),
+
+                # C) Marca D'água
+                html.Div(
+                    "Powered by Solos IA • Bob AI Assistant",
+                    className="text-center text-muted extra-small",
+                    style={"fontSize": "10px", "opacity": "0.7"}
                 )
-            ], align="center", className="g-0 bg-white p-2 rounded-4 border")
-        ], style={"width": "100%"}), className="border-0 pt-0 bg-white")
 
-    ], style={"height": "100vh", "border": "none", "display": "flex", "flexDirection": "column"})
-], style={"height": "100vh", "width": "100vw", "overflow": "hidden"})
+            ], className="w-100 d-flex flex-column"), 
+            className="border-0 pt-2 pb-2 bg-light rounded-bottom-4")
+
+        ], className="h-100 shadow-lg border-0 rounded-4 d-flex flex-column"), 
+        
+        fluid=True, 
+        className="p-0 h-100"
+    )
+], style={"height": "100vh", "width": "100vw", "backgroundColor": "transparent"})
+# Fundo transparente para o iframe
 # ==============================================================================
 
 # --- Layouts das Páginas (SEU CÓDIGO ORIGINAL RESTAURADO) ---
@@ -207,12 +270,32 @@ dashboard_layout = html.Div([
 
         # Rodapé (Com botões Like/Dislike e Input arredondado)
         dbc.ModalFooter(html.Div([
-            # Sugestões (Pílulas)
-            html.Div([
-                dbc.Button("Como funciona?", id="quick-reply-btn-1", outline=True, color="secondary", size="sm", className="me-2 rounded-pill mb-2"),
-                dbc.Button("Quero vender", id="quick-reply-btn-2", outline=True, color="secondary", size="sm", className="me-2 rounded-pill mb-2"),
-                dbc.Button("Produtos para pets", id="quick-reply-btn-3", outline=True, color="secondary", size="sm", className="rounded-pill mb-2"),
-            ], className="text-center mb-2"),
+    
+    # Usando Flexbox para alinhar e dar espaçamento (gap-2)
+    html.Div([
+        # 1. Botão do Chat (ID antigo mantido: quick-reply-btn-1)
+        dbc.Button(
+            "Como funciona?", 
+            id="quick-reply-btn-1", 
+            outline=True, 
+            color="secondary", 
+            size="sm", 
+            className="rounded-pill"
+        ),
+
+        # 2. Botão de Link Externo
+        dbc.Button(
+            "Cadastre-se para comprar", 
+            href="https://www.everpetzstore.com.br/register/buyer/",
+            external_link=True, 
+            target="_blank", 
+            outline=True,           # Padronizado com outline
+            color="secondary",      # Padronizado com secondary
+            size="sm", 
+            className="rounded-pill text-decoration-none"
+        ),
+        
+    ], className="d-flex justify-content-center gap-2 mb-2"), # Alinhamento perfeito
 
             # Barra de Input Estilo App
             dbc.Row([
@@ -399,7 +482,6 @@ configuracoes_layout = html.Div([
     ], className="shadow-sm")
 ])
 
-# --- Componentes Principais ---
 # --- Componentes Principais e Layout Geral ---
 sidebar = html.Div([
     # 1. Cabeçalho do Perfil Refinado
@@ -567,15 +649,36 @@ def toggle_chat_modal_and_init(n_clicks, is_open):
     no_updates = [no_update] * 9
     return is_open, *no_updates[1:]
 
-@app.callback([Output("modal-chat-input", "value", allow_duplicate=True), Output("modal-chat-submit-btn", "n_clicks", allow_duplicate=True)], [Input("quick-reply-btn-1", "n_clicks"), Input("quick-reply-btn-2", "n_clicks"), Input("quick-reply-btn-3", "n_clicks")], State("modal-chat-submit-btn", "n_clicks"), prevent_initial_call=True)
-def handle_quick_replies(n1, n2, n3, current_submit_clicks):
-    ctx = callback_context
-    if not ctx.triggered: return no_update, no_update
-    button_id = ctx.triggered_id
-    if button_id == "quick-reply-btn-1": question = "Como funciona?"
-    elif button_id == "quick-reply-btn-2": question = "Quero vender"
-    elif button_id == "quick-reply-btn-3": question = "Produtos para pets"
-    else: return no_update, no_update
+# 1. Callback Especialista para o MODAL ADMIN (Widget de Teste)
+@app.callback(
+    [Output("modal-chat-input", "value", allow_duplicate=True), 
+     Output("modal-chat-submit-btn", "n_clicks", allow_duplicate=True)], 
+    [Input("quick-reply-btn-1", "n_clicks")], # Ouve apenas o botão do Modal
+    State("modal-chat-submit-btn", "n_clicks"), 
+    prevent_initial_call=True
+)
+def handle_admin_quick_reply(n_clicks, current_submit_clicks):
+    if not n_clicks: return no_update, no_update
+    
+    # [AJUSTE V13.6] Pergunta enriquecida para melhor contexto do Agente
+    question = "Como funciona o marketplace."
+    
+    return question, (current_submit_clicks or 0) + 1
+
+# 2. Callback Especialista para o WIDGET PÚBLICO (Tela Cheia)
+@app.callback(
+    [Output("public_input", "value", allow_duplicate=True), 
+     Output("public_submit", "n_clicks", allow_duplicate=True)], 
+    [Input("public_quick_1", "n_clicks")], # Ouve apenas o botão Público
+    State("public_submit", "n_clicks"), 
+    prevent_initial_call=True
+)
+def handle_public_quick_reply(n_clicks, current_submit_clicks):
+    if not n_clicks: return no_update, no_update
+    
+    # [AJUSTE V13.6] Pergunta enriquecida para melhor contexto do Agente
+    question = "Como funciona o marketplace."
+    
     return question, (current_submit_clicks or 0) + 1
 
 @app.callback([Output("modal-chat-history-store", "data", allow_duplicate=True), Output("modal-chat-input", "value", allow_duplicate=True)], [Input("modal-chat-submit-btn", "n_clicks"), Input("modal-chat-input", "n_submit")], [State("modal-chat-input", "value"), State("modal-chat-history-store", "data")], prevent_initial_call=True)
@@ -830,13 +933,6 @@ def init_public_widget(n):
     wc = st.get("welcome_message", "Olá!")
     col = st.get("chat_color", "#526A86")
     return ([{"role": "assistant", "content": wc}], [create_chat_bubble('assistant', wc)], str(uuid.uuid4()), st, st.get("agent_name", "Bob"), f"{app.get_asset_url('bob_avatar.jpg')}?t={time.time()}", {'backgroundColor': col, 'color': 'white', 'borderRadius': '0', 'padding':'10px'}, {'backgroundColor': col, 'borderColor': col})
-
-@app.callback([Output("public_input", "value", allow_duplicate=True), Output("public_submit", "n_clicks", allow_duplicate=True)], [Input("public_quick_1", "n_clicks"), Input("public_quick_2", "n_clicks"), Input("public_quick_3", "n_clicks")], State("public_submit", "n_clicks"), prevent_initial_call=True)
-def public_quick_reply(n1, n2, n3, clk):
-    ctx = callback_context
-    bid = ctx.triggered_id
-    q = "Como funciona?" if bid == "public_quick_1" else "Quero vender" if bid == "public_quick_2" else "Produtos para pets"
-    return q, (clk or 0) + 1
 
 @app.callback([Output("public_history_store", "data", allow_duplicate=True), Output("public_input", "value", allow_duplicate=True)], [Input("public_submit", "n_clicks"), Input("public_input", "n_submit")], [State("public_input", "value"), State("public_history_store", "data")], prevent_initial_call=True)
 def public_user_msg(n, ns, val, hist):
