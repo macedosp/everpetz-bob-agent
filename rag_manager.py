@@ -1,6 +1,6 @@
-# rag_manager.py - VERSÃO V12 (AUTO-CLEAN / SEM ZUMBIS)
+# rag_manager.py - VERSÃO V13 (SAFE WIPE / DOCKER FRIENDLY)
 import os
-import shutil # [NOVO] Para deletar pastas inteiras
+import shutil
 from datetime import datetime
 import traceback
 
@@ -47,25 +47,22 @@ def process_knowledge_base():
                     with open(file_path, "r", encoding="utf-8") as f:
                         full_text = f.read()
                     
-                    # Divide pelos traços que definimos no feed_manager (---)
                     product_blocks = full_text.split("---")
                     
                     count_txt = 0
                     for block in product_blocks:
-                        if block.strip(): # Ignora blocos vazios
+                        if block.strip():
                             doc = Document(page_content=block.strip(), metadata={"source": file})
                             documents.append(doc)
                             count_txt += 1
                     print(f" > Arquivo {file}: {count_txt} produtos/blocos extraídos.")
 
-                # --- ESTRATÉGIA PADRÃO PARA PDF ---
                 elif file.lower().endswith('.pdf'):
                     loader = PyPDFLoader(file_path)
                     docs_pdf = loader.load()
                     documents.extend(docs_pdf)
                     print(f" > Arquivo {file}: {len(docs_pdf)} páginas carregadas.")
                 
-                # --- ESTRATÉGIA PADRÃO PARA DOCX ---
                 elif file.lower().endswith('.docx'):
                     loader = Docx2txtLoader(file_path)
                     docs_docx = loader.load()
@@ -77,34 +74,39 @@ def process_knowledge_base():
                 continue
                 
         if not documents:
-            print("Nada para processar (lista de documentos vazia).")
+            print("Nada para processar (lista vazia).")
             return False
 
-        print(f"Total geral de documentos/blocos brutos: {len(documents)}")
+        print(f"Total geral de documentos: {len(documents)}")
 
-        # 3. Dividir (Chunking) com margem de segurança
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=2500, chunk_overlap=200)
         chunks = text_splitter.split_documents(documents)
-        print(f"Chunking final: {len(chunks)} pedaços prontos para o vetor.")
+        print(f"Chunking final: {len(chunks)} pedaços.")
 
         # ======================================================================
-        # [NOVO] PROTOCOLO DE LIMPEZA TOTAL (WIPE)
+        # [ATUALIZADO] SAFE WIPE (Limpa CONTEÚDO, mantém a PASTA)
         # ======================================================================
         if os.path.exists(CHROMA_DB_DIR):
-            print(f"🧹 EXECUTANDO LIMPEZA: Removendo banco antigo em '{CHROMA_DB_DIR}'...")
+            print(f"🧹 EXECUTANDO LIMPEZA SEGURA em '{CHROMA_DB_DIR}'...")
             try:
-                shutil.rmtree(CHROMA_DB_DIR)
-                print("✅ Banco antigo removido com sucesso (Zombie Data eliminado).")
+                # Remove arquivo por arquivo, evitando erro de permissão na pasta raiz
+                for filename in os.listdir(CHROMA_DB_DIR):
+                    file_path = os.path.join(CHROMA_DB_DIR, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception as e:
+                        print(f'Falha ao deletar {file_path}. Razão: {e}')
+                print("✅ Banco antigo limpo (Estrutura mantida).")
             except Exception as e:
-                print(f"⚠️ Aviso: Não foi possível apagar a pasta automaticamente (pode estar em uso): {e}")
-                # Se falhar, tentamos prosseguir, mas o ideal é que apague.
+                print(f"⚠️ Aviso na limpeza: {e}")
         
-        # 4. Gravar no ChromaDB (Agora em um diretório limpo)
-        print(f"Gravando {len(chunks)} novos vetores em '{CHROMA_DB_DIR}'...")
+        print(f"Gravando {len(chunks)} novos vetores...")
         vector_store = get_vector_store()
         vector_store.add_documents(chunks)
         
-        # 5. Marcador
         with open(os.path.join(KNOWLEDGE_BASE_DIR, '.last_processed'), 'w') as f:
             f.write(datetime.now().isoformat())
 
@@ -120,5 +122,4 @@ def get_retriever():
     if not os.path.exists(CHROMA_DB_DIR):
         return get_vector_store().as_retriever()
     vector_store = get_vector_store()
-    # K=25 para trazer variedade de produtos
     return vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 25})
