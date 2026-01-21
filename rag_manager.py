@@ -1,12 +1,12 @@
-# rag_manager.py - VERSÃO V11 (SMART FEED SPLITTER)
+# rag_manager.py - VERSÃO V12 (AUTO-CLEAN / SEM ZUMBIS)
 import os
+import shutil # [NOVO] Para deletar pastas inteiras
 from datetime import datetime
 import traceback
 
 # Bibliotecas do LangChain
 from langchain_chroma import Chroma 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
-# [NOVO] Importação necessária para criar documentos manuais
 from langchain_core.documents import Document 
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter 
@@ -44,18 +44,15 @@ def process_knowledge_base():
                 
                 # --- ESTRATÉGIA INTELIGENTE PARA O FEED (.TXT) ---
                 if file.lower().endswith('.txt'):
-                    # Lê o arquivo inteiro como texto
                     with open(file_path, "r", encoding="utf-8") as f:
                         full_text = f.read()
                     
                     # Divide pelos traços que definimos no feed_manager (---)
-                    # Isso garante que cada produto seja um documento único e íntegro
                     product_blocks = full_text.split("---")
                     
                     count_txt = 0
                     for block in product_blocks:
                         if block.strip(): # Ignora blocos vazios
-                            # Cria um Documento LangChain manualmente
                             doc = Document(page_content=block.strip(), metadata={"source": file})
                             documents.append(doc)
                             count_txt += 1
@@ -80,26 +77,38 @@ def process_knowledge_base():
                 continue
                 
         if not documents:
-            print("Nada para processar.")
+            print("Nada para processar (lista de documentos vazia).")
             return False
 
         print(f"Total geral de documentos/blocos brutos: {len(documents)}")
 
         # 3. Dividir (Chunking) com margem de segurança
-        # Aumentamos para 2500 chars para garantir que um produto inteiro (com link e imagem) caiba num só bloco
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=2500, chunk_overlap=200)
         chunks = text_splitter.split_documents(documents)
         print(f"Chunking final: {len(chunks)} pedaços prontos para o vetor.")
 
-        # 4. Gravar no ChromaDB
+        # ======================================================================
+        # [NOVO] PROTOCOLO DE LIMPEZA TOTAL (WIPE)
+        # ======================================================================
+        if os.path.exists(CHROMA_DB_DIR):
+            print(f"🧹 EXECUTANDO LIMPEZA: Removendo banco antigo em '{CHROMA_DB_DIR}'...")
+            try:
+                shutil.rmtree(CHROMA_DB_DIR)
+                print("✅ Banco antigo removido com sucesso (Zombie Data eliminado).")
+            except Exception as e:
+                print(f"⚠️ Aviso: Não foi possível apagar a pasta automaticamente (pode estar em uso): {e}")
+                # Se falhar, tentamos prosseguir, mas o ideal é que apague.
+        
+        # 4. Gravar no ChromaDB (Agora em um diretório limpo)
+        print(f"Gravando {len(chunks)} novos vetores em '{CHROMA_DB_DIR}'...")
         vector_store = get_vector_store()
-        print(f"Gravando no ChromaDB em '{CHROMA_DB_DIR}'...")
         vector_store.add_documents(chunks)
         
         # 5. Marcador
         with open(os.path.join(KNOWLEDGE_BASE_DIR, '.last_processed'), 'w') as f:
             f.write(datetime.now().isoformat())
 
+        print("Processamento concluído com sucesso.")
         return True
 
     except Exception as e:
@@ -111,5 +120,5 @@ def get_retriever():
     if not os.path.exists(CHROMA_DB_DIR):
         return get_vector_store().as_retriever()
     vector_store = get_vector_store()
-    # K=10 para trazer variedade de produtos
+    # K=25 para trazer variedade de produtos
     return vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 25})
