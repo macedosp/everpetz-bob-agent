@@ -1,5 +1,5 @@
-# dashboard.py - VERSÃO V10 (INTERFACE REFINADA + VISUALIZAÇÃO DO FEED)
-# V10 Update Force
+# dashboard.py - VERSÃO V16 FINAL (DESIGN V10 + INTEGRAÇÃO JSON CORRIGIDA)
+
 from apscheduler.schedulers.background import BackgroundScheduler
 import feed_manager
 import dash
@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, State, ALL, callback_context, no_update
 import plotly.graph_objects as go
 import os
+import json
 import rag_manager
 import base64
 import datetime
@@ -16,6 +17,21 @@ import pandas as pd
 import diskcache
 from dash import DiskcacheManager
 from dotenv import load_dotenv
+from scheduler_service import start_scheduler
+
+# --- ADIÇÃO PARA SINCRONIA V16 ---
+STATUS_FILE_V16 = "/app/knowledge_base/status.json"
+
+def get_v16_status():
+    """Lê o status real gerado pelo Backend V16."""
+    if os.path.exists(STATUS_FILE_V16):
+        try:
+            with open(STATUS_FILE_V16, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"docs": [], "processing": False}
+# ---------------------------------
 
 # --- CONFIGURAÇÃO ---
 cache = diskcache.Cache("./callback_cache")
@@ -43,23 +59,17 @@ def create_chat_bubble(role, content, is_thinking=False):
     if role == 'user':
         bubble = dbc.Card(
             dbc.CardBody(dcc.Markdown(content), className="p-3"),
-            # [COR] Mantendo o #008080 conforme sua última validação
-            style={"backgroundColor": "#008080", "borderRadius": "15px 15px 0px 15px"},
+            # [CORREÇÃO INTELIGENTE] Usamos var(--mobile-theme) com fallback para #008080
+            style={"backgroundColor": "var(--mobile-theme, #008080)", "borderRadius": "15px 15px 0px 15px"},
             inverse=True, className="shadow-sm border-0"
         )
         return dbc.Row(dbc.Col(bubble, width={"size": 9, "offset": 3}), className="g-0 mb-3 justify-content-end")
     else:
-        # Se estiver pensando, mostra o Spinner. Se não, mostra o Markdown.
+        # (O resto da função Assistant continua igual)
         if is_thinking:
             content_display = dbc.Spinner(size="sm", color="primary")
         else:
-            # [CORREÇÃO CRÍTICA AQUI]
-            # link_target="_blank" força os links a abrirem em nova aba
-            content_display = dcc.Markdown(
-                content, 
-                dangerously_allow_html=False,
-                link_target="_blank" 
-            )
+            content_display = dcc.Markdown(content, dangerously_allow_html=False, link_target="_blank")
 
         bubble = dbc.Card(
             dbc.CardBody(content_display, className="p-3"),
@@ -178,8 +188,66 @@ widget_layout = html.Div([
         className="p-0 h-100"
     )
 ], style={"height": "100vh", "width": "100vw", "backgroundColor": "transparent"})
-# Fundo transparente para o iframe
+
 # ==============================================================================
+# [LAYOUT] MOBILE APP V3 - SISTEMA DE TEMAS COM VARIÁVEIS CSS
+# ==============================================================================
+mobile_layout = html.Div([
+    dcc.Interval(id='public_init_trigger', interval=1000, n_intervals=0, max_intervals=1),
+    dcc.Store(id='public_history_store', data=[]),
+    dcc.Store(id='public_session_id', data=None),
+    dcc.Store(id='public_settings_store', data={}),
+    dcc.Store(id='mobile_theme_store', data="#008080"),
+
+    # MENU LATERAL
+    dbc.Offcanvas([
+        html.H5("Configurações", className="mb-4"),
+        html.Label("🎨 Tema do App", className="fw-bold mb-2"),
+        dbc.Row([
+            dbc.Col(dbc.Button("Clássico", id="theme_teal_btn", color="light", className="w-100 border-2", style={"borderColor": "#008080", "color": "#008080"}), width=6),
+            dbc.Col(dbc.Button("Varejo", id="theme_orange_btn", color="light", className="w-100 border-2", style={"borderColor": "#f89c53", "color": "#f89c53"}), width=6),
+        ], className="mb-4"),
+        html.Hr(),
+        dbc.Button([html.I(className="bi bi-trash me-2"), "Limpar Histórico"], id="mobile_clear_btn", color="danger", outline=True, className="w-100"),
+        html.Div("Versão Mobile V1.1", className="text-muted small text-center mt-4")
+    ], id="mobile_menu_offcanvas", title="Menu", is_open=False, placement="end"),
+
+    # CONTAINER PRINCIPAL (WRAPPER DO TEMA)
+    dbc.Container([
+        
+        # 1. HEADER (Usa a variável)
+        dbc.Row([
+            dbc.Col([html.Img(src=app.get_asset_url('bob_avatar.jpg'), className="rounded-circle border border-2 border-white", style={'width': '42px', 'height': '42px'})], width="auto", className="pe-2"),
+            dbc.Col([html.H5("Bob", className="mb-0 fw-bold text-white", style={"fontSize": "1.1rem"}), html.Div([html.I(className="bi bi-circle-fill text-warning me-1", style={'fontSize':'8px'}), "Everpetz AI"], className="text-white-50 small")], className="d-flex flex-column justify-content-center"),
+            dbc.Col(dbc.Button(html.I(className="bi bi-list", style={"fontSize": "1.5rem"}), id="open_mobile_menu", color="link", className="text-white p-0"), width="auto", className="text-end")
+        ], 
+        align="center", className="g-0 px-3 py-2 shadow-sm transition-all", 
+        # [MÁGICA] Background usa a variável
+        style={"backgroundColor": "var(--mobile-theme)", "flex": "0 0 auto", "transition": "background-color 0.3s"}),
+
+        # 2. CORPO DO CHAT
+        html.Div(id="public_chat_div", style={"flex": "1 1 auto", "overflowY": "auto", "padding": "15px", "backgroundColor": "#f2f4f7", "scrollBehavior": "smooth"}),
+
+        # 3. RODAPÉ
+        html.Div([
+            # Sugestões (Usa a variável na borda e texto)
+            html.Div([
+                dbc.Button("Como funciona?", id="public_quick_1", size="sm", outline=True, className="rounded-pill bg-white text-nowrap mobile-pill", style={"borderColor": "var(--mobile-theme)", "color": "var(--mobile-theme)"}),
+                dbc.Button("Meus Pedidos", id="public_quick_2", disabled=True, size="sm", outline=True, className="rounded-pill bg-white text-nowrap ms-2 mobile-pill", style={"borderColor": "var(--mobile-theme)", "color": "var(--mobile-theme)"}),
+            ], className="d-flex overflow-auto px-3 pb-2 pt-2 no-scrollbar", style={"whiteSpace": "nowrap"}),
+
+            # Input e Botão (Botão usa a variável no fundo e borda)
+            dbc.Row([
+                dbc.Col(dbc.Input(id="public_input", placeholder="Digite sua mensagem...", className="rounded-pill border-0 bg-light py-2 px-3 shadow-sm", style={"fontSize": "16px"}), className="flex-grow-1"),
+                dbc.Col(dbc.Button(html.I(className="bi bi-send-fill"), id="public_submit", className="rounded-circle shadow-sm d-flex align-items-center justify-content-center transition-all", style={"backgroundColor": "var(--mobile-theme)", "borderColor": "var(--mobile-theme)", "width": "45px", "height": "45px"}), width="auto", className="ps-2")
+            ], align="center", className="g-0 px-3 pb-3 pt-1 bg-white")
+
+        ], style={"flex": "0 0 auto", "backgroundColor": "white", "borderTop": "1px solid #eee"})
+
+    # [IMPORTANTE] Definimos a variável CSS aqui no topo. O callback vai mudar SÓ ISSO.
+    ], id="mobile_theme_wrapper", fluid=True, className="d-flex flex-column p-0 m-0", style={"height": "100vh", "width": "100vw", "overflow": "hidden", "--mobile-theme": "#008080"})
+])
+
 
 # --- Layouts das Páginas (SEU CÓDIGO ORIGINAL RESTAURADO) ---
 dashboard_layout = html.Div([
@@ -566,6 +634,11 @@ def serve_layout():
         dcc.Location(id="url"),
         # [MODIFICADO] storage_type='local' para evitar logout involuntário
         dcc.Store(id='session-store', storage_type='local'), 
+        
+        # --- [NOVO] O Relógio que atualiza o status a cada 3 segundos ---
+        dcc.Interval(id='interval-component', interval=3000, n_intervals=0),
+        # ----------------------------------------------------------------
+        
         dcc.Loading(id="loading-feedback", type="default", children=html.Div(id="upload-feedback-div", style={'position': 'fixed', 'top': '10px', 'right': '10px', 'zIndex': 1050})),
         dcc.Store(id='signal-store'),
         html.Div(id="page-container")
@@ -586,10 +659,19 @@ app.layout = serve_layout
 
 @app.callback(Output("page-container", "children"), Input("session-store", "data"), Input("url", "pathname"))
 def auth_router(session_data, pathname):
-    # [MODIFICADO] Permitir Widget SEM LOGIN (Rota Pública)
-    if pathname and ("/chat" in pathname or "/widget" in pathname): return widget_layout
+    # 1. Rota Pública do WIDGET (Chat flutuante)
+    if pathname and ("/chat" in pathname or "/widget" in pathname): 
+        return widget_layout
     
-    if not session_data: return login_layout
+    # 2. [NOVO] Rota Pública do MOBILE APP (Tela Cheia) <--- AQUI ESTÁ A MUDANÇA
+    if pathname and "/mobile" in pathname:
+        return mobile_layout
+    
+    # 3. Verificação de Login (Área Administrativa)
+    if not session_data: 
+        return login_layout
+    
+    # 4. App Shell (Painel com Sidebar)
     app_shell = html.Div([sidebar, content])
     return app_shell
 
@@ -811,53 +893,82 @@ def delete_file(n):
     try: os.remove(os.path.join(rag_manager.KNOWLEDGE_BASE_DIR, fname)); return dbc.Alert(f"Arquivo '{fname}' deletado!", color="success", duration=4000)
     except Exception as e: return dbc.Alert(f"Erro: {e}", color="danger")
 
-@app.callback(Output("upload-feedback-div", "children", allow_duplicate=True), Input("process-kb-btn", "n_clicks"), prevent_initial_call=True)
+@app.callback(
+    Output("upload-feedback-div", "children", allow_duplicate=True), 
+    Input("process-kb-btn", "n_clicks"), 
+    prevent_initial_call=True
+)
 def process_kb(n): 
-    # [CORREÇÃO V10.1] O Porteiro: Se n for None (botão acabou de nascer), não faz nada.
-    if not n: 
-        return no_update
+    if not n: return dash.no_update
     
-    return dbc.Alert("Base processada!", color="success", duration=4000, is_open=True) if rag_manager.process_knowledge_base() else dbc.Alert("Nada para processar.", color="warning", duration=4000, is_open=True)
+    try:
+        # Tenta processar
+        success = rag_manager.process_knowledge_base()
+        
+        if success:
+            return dbc.Alert("✅ Processamento iniciado com sucesso!", color="success", duration=5000, is_open=True, dismissable=True)
+        else:
+            return dbc.Alert("⚠️ O processador rodou, mas não encontrou novos arquivos.", color="warning", duration=5000, is_open=True, dismissable=True)
+            
+    except Exception as e:
+        # Se der erro (ex: falta de import), ele vai te contar agora!
+        return dbc.Alert(f"Erro Crítico no Botão: {str(e)}", color="danger", duration=10000, is_open=True, dismissable=True)
 
 # ==============================================================================
-# [MODIFICAÇÃO V10] Lógica de Exibição de Documentos + Feed
+# [MODIFICAÇÃO V10 + V16] Sincronia Real de Status
 # ==============================================================================
-@app.callback(Output("document-list-group", "children"), [Input("url", "pathname"), Input("upload-feedback-div", "children")])
-def update_docs(p, f):
+# 1. ATUALIZA A LISTA DE DOCUMENTOS (CENTRAL)
+@app.callback(Output("document-list-group", "children"), [Input("url", "pathname"), Input("upload-feedback-div", "children"), Input("interval-component", "n_intervals")])
+def update_docs(p, f, n):
     if p == "/base-de-conhecimento":
+        # Lê o JSON usando a função do passo 1
+        status_data = get_v16_status()
+        
+        # Cria um dicionário para busca rápida: {"Feed...": {dados}}
+        docs_map = {d["name"]: d for d in status_data.get("docs", [])}
+        
+        # Lista arquivos físicos
         if not os.path.exists(rag_manager.KNOWLEDGE_BASE_DIR): os.makedirs(rag_manager.KNOWLEDGE_BASE_DIR)
         files = [f for f in os.listdir(rag_manager.KNOWLEDGE_BASE_DIR) if f.endswith((".pdf", ".docx", ".txt"))]
         
         items = []
         for file in files:
-            # LÓGICA V10: Tratamento especial para o arquivo de Feed
             if file == "feed_produtos_everpetz.txt":
-                # Pega a data de modificação para mostrar quando foi atualizado
-                mtime = os.path.getmtime(os.path.join(rag_manager.KNOWLEDGE_BASE_DIR, file))
-                dt_str = datetime.datetime.fromtimestamp(mtime).strftime('%d/%m/%Y %H:%M')
-                
+                # Pega dados do JSON ou usa padrão se não achar
+                feed_data = docs_map.get("Feed de Produtos (Automático)", {})
+                st = feed_data.get("status", "system")
+                info = feed_data.get("info", "Arquivo detectado.")
+                updated = feed_data.get("updated_at", "-")
+
+                # Define a cor do Badge
+                if st == "active":
+                    badge = dbc.Badge("Ativo ✅", color="success", className="p-2")
+                elif st == "processing":
+                    badge = dbc.Badge("Processando ⏳", color="warning", className="p-2")
+                elif st == "error":
+                    badge = dbc.Badge("Erro ❌", color="danger", className="p-2")
+                else:
+                    badge = dbc.Badge("Sistema", color="info")
+
                 items.append(dbc.ListGroupItem([
                     dbc.Row([
                         dbc.Col(html.Div([
-                            html.I(className="bi bi-globe2 text-info me-2"), # Ícone de Globo
+                            html.I(className="bi bi-globe2 text-primary me-2"), 
                             html.Span("Feed de Produtos (Automático)", className="fw-bold"),
-                            html.Br(),
-                            html.Small(f"Última atualização: {dt_str}", className="text-muted")
+                            html.Div(html.Small(f"{info} • {updated}", className="text-muted"), className="mt-1")
                         ]), width=8),
-                        dbc.Col(dbc.Badge("Sistema", color="info"), width="auto"),
-                        # Sem botão de deletar para proteger o feed
+                        dbc.Col(badge, width="auto"),
                     ], align="center")
                 ]))
             else:
-                # Arquivos normais (PDF, DOCX)
+                # Arquivos normais
                 items.append(dbc.ListGroupItem([
                     dbc.Row([
-                        dbc.Col(html.Div([html.I(className="bi bi-file-earmark-text-fill text-primary me-2"), file]), width=8),
-                        dbc.Col(dbc.Badge("Ativo", color="success"), width="auto"),
+                        dbc.Col(html.Div([html.I(className="bi bi-file-earmark-text-fill text-secondary me-2"), file]), width=8),
+                        dbc.Col(dbc.Badge("Arquivo Local", color="light", text_color="dark"), width="auto"),
                         dbc.Col(dbc.Button("🗑️", id={'type': 'delete-btn', 'index': file}, color="light", size="sm"), width="auto")
                     ], align="center")
                 ]))
-        
         return items or dbc.ListGroupItem("Nenhum documento.")
     return []
 
@@ -869,20 +980,30 @@ def clear_alerts(pathname):
     # Retorna lista vazia para limpar o container de alertas
     return []
 
-@app.callback(Output("stats-list-group", "children"), [Input("url", "pathname"), Input("upload-feedback-div", "children")])
-def update_stats(p, f):
+# 2. ATUALIZA AS ESTATÍSTICAS (PAINEL DIREITO)
+@app.callback(Output("stats-list-group", "children"), [Input("url", "pathname"), Input("upload-feedback-div", "children"), Input("interval-component", "n_intervals")])
+def update_stats(p, f, n):
     if p == "/base-de-conhecimento":
-        td, pd, ad, lu = 0, 0, 0, "N/A"
-        mf = os.path.join(rag_manager.KNOWLEDGE_BASE_DIR, '.last_processed')
-        lt = os.path.getmtime(mf) if os.path.exists(mf) else 0
-        if os.path.exists(rag_manager.KNOWLEDGE_BASE_DIR):
-            fl = [x for x in os.listdir(rag_manager.KNOWLEDGE_BASE_DIR) if x.endswith((".pdf", ".txt", ".docx"))]
-            td = len(fl)
-            for x in fl:
-                if os.path.getmtime(os.path.join(rag_manager.KNOWLEDGE_BASE_DIR, x)) > lt: pd += 1
-            ad = td - pd
-            if lt > 0: lu = datetime.datetime.fromtimestamp(lt).strftime('%d/%m/%Y %H:%M')
-        return [dbc.ListGroupItem(["Total", dbc.Badge(str(td), color="primary", className="ms-1")], className="d-flex justify-content-between"), dbc.ListGroupItem(["Ativos", dbc.Badge(str(ad), color="success", className="ms-1")], className="d-flex justify-content-between"), dbc.ListGroupItem(["Processando", dbc.Badge(str(pd), color="warning" if pd>0 else "secondary", className="ms-1")], className="d-flex justify-content-between"), dbc.ListGroupItem(["Atualizado", dbc.Badge(lu, color="info", className="ms-1")], className="d-flex justify-content-between")]
+        # Lê o JSON
+        data = get_v16_status()
+        
+        # Contagem de arquivos físicos
+        try:
+            files_count = len([x for x in os.listdir(rag_manager.KNOWLEDGE_BASE_DIR) if x.endswith((".pdf", ".txt", ".docx"))])
+        except:
+            files_count = 0
+        
+        # Lê status geral do JSON
+        is_processing = data.get("processing", False)
+        last_update = data.get("last_update", "Nunca")
+        
+        status_badge = dbc.Badge("Processando...", color="warning") if is_processing else dbc.Badge("Ocioso", color="secondary")
+        
+        return [
+            dbc.ListGroupItem(["Total de Arquivos", dbc.Badge(str(files_count), color="primary", className="ms-1")], className="d-flex justify-content-between align-items-center"),
+            dbc.ListGroupItem(["Status do Robô", status_badge], className="d-flex justify-content-between align-items-center"),
+            dbc.ListGroupItem(["Última Ação", dbc.Badge(last_update, color="info", className="ms-1")], className="d-flex justify-content-between align-items-center")
+        ]
     return []
 
 @app.callback([Output("setting-agent-name", "value"), Output("setting-welcome-message", "value"), Output("setting-chat-color", "value"), Output("setting-feed-url", "value"), Output("setting-auto-response", "value"), Output("setting-auto-escalation", "value"), Output("setting-log-conversation", "value")], Input("url", "pathname"))
@@ -955,18 +1076,71 @@ def public_agent_reply(hist, sid, st):
 @app.callback(Output("public_chat_div", "children", allow_duplicate=True), Input("public_history_store", "data"), prevent_initial_call=True)
 def render_public_chat(hist): return [create_chat_bubble(m['role'], m['content'], m['content']=='thinking...') for m in hist or []]
 
+# --- CALLBACKS DO MOBILE APP ---
+
+# 1. Abrir/Fechar o Menu Lateral
+@app.callback(
+    Output("mobile_menu_offcanvas", "is_open"),
+    Input("open_mobile_menu", "n_clicks"),
+    State("mobile_menu_offcanvas", "is_open"),
+    prevent_initial_call=True
+)
+def toggle_mobile_menu(n1, is_open):
+    if n1:
+        return not is_open
+    return is_open
+
+# 2. Gerenciar a Troca de Tema (Via Variável CSS)
+@app.callback(
+    [Output("mobile_theme_wrapper", "style"), # Atualiza o container principal
+     Output("mobile_theme_store", "data")],
+    [Input("theme_teal_btn", "n_clicks"),
+     Input("theme_orange_btn", "n_clicks")],
+    State("mobile_theme_store", "data"),
+    prevent_initial_call=True
+)
+def change_mobile_theme(btn_teal, btn_orange, current_color):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        new_color = current_color
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        if button_id == "theme_teal_btn":
+            new_color = "#008080" # Transformative Teal
+        elif button_id == "theme_orange_btn":
+            new_color = "#f89c53" # Petz Orange
+        else:
+            new_color = current_color
+
+    # Retorna o estilo atualizado com a nova variável
+    # Mantemos as propriedades de layout (height, width) e atualizamos a cor
+    new_style = {
+        "height": "100vh", 
+        "width": "100vw", 
+        "overflow": "hidden", 
+        "--mobile-theme": new_color, # <--- AQUI A MÁGICA
+        "display": "flex",
+        "flexDirection": "column"
+    }
+
+    return new_style, new_color
+
+
 if __name__ == '__main__':
+    # 1. Garantir pastas e banco (Mantido do original)
     if not os.path.exists('assets'): os.makedirs('assets')
     database.init_db()
 
-    # --- INÍCIO DA ADIÇÃO: AGENDADOR DE TAREFAS ---
-    # Configura o agendador para rodar em segundo plano
-    scheduler = BackgroundScheduler()
-    # Adiciona a tarefa: rodar 'process_product_feed' a cada 24 horas
-    #scheduler.add_job(func=feed_manager.process_product_feed, trigger="interval", hours=24)
-    #scheduler.start()
-    # --- FIM DA ADIÇÃO ---
+    # 2. Iniciar o Robô de Automação (NOVO)
+    # Removemos o código antigo comentado e colocamos o start_scheduler()
+    # A verificação abaixo previne execução dupla caso você ative o debug=True no futuro
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not os.environ.get("FLASK_DEBUG"):
+        print(">>> Iniciando Scheduler Automático (V14)...")
+        try:
+            start_scheduler()
+        except Exception as e:
+            print(f"⚠️ Erro ao iniciar Scheduler: {e}")
 
-# MUDANÇA CRÍTICA: host='0.0.0.0' libera o acesso externo
-
-app.run(host='0.0.0.0', port=8050, debug=False)
+    # 3. Iniciar o App (Mantido do original)
+    # Mantenha debug=False e host='0.0.0.0' como você já configurou
+    app.run(host='0.0.0.0', port=8050, debug=False)

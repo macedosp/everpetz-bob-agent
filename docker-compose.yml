@@ -5,17 +5,28 @@ services:
     build: .
     container_name: everpetz-bob
     restart: always
+    # Mantemos root para garantir permissão total de escrita no volume interno
+    user: root
     ports:
       - "8050:8050"
     volumes:
-      # Mapeia pastas para não perder dados
-      - ./chroma_db:/app/chroma_db
+      # --- A BLINDAGEM (Persistência Segura) ---
+      # Mapeia o caminho interno do banco para um Volume Docker Nativo.
+      # Isso salva os dados mesmo se o container reiniciar, SEM travar no Windows.
+      - chroma_safe_storage:/app/banco_vetorial_seguro
+      # -----------------------------------------
+      
       - ./knowledge_base:/app/knowledge_base
       - ./assets:/app/assets
       - ./google-shopping.xml:/app/google-shopping.xml
-      # Se quiser persistir o banco SQLite fora do container, descomente:
-      - ./bob_database.sqlite:/app/bob_database.sqlite
+      
+      # Persistência do Banco de Usuários (Login) - Opcional
+      # - ./bob_database.sqlite:/app/bob_database.sqlite
+
     environment:
       - TZ=America/Sao_Paulo
-      # Coloque sua chave aqui ou use um arquivo .env no servidor
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+# Declaração do Volume (O Cofre Linux)
+volumes:
+  chroma_safe_storage:

@@ -1,0 +1,13 @@
+{
+    "docs": [
+        {
+            "name": "Feed de Produtos (Automático)",
+            "type": "Sistema",
+            "status": "active",
+            "updated_at": "24/01/2026 20:21",
+            "info": "776 Produtos (787 vetores)."
+        }
+    ],
+    "last_update": "24/01/2026 20:21",
+    "processing": false
+}
