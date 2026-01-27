@@ -1,25 +1,26 @@
-# requirements.txt - Versão Final para Docker/VPS
+# requirements.txt - Versão Blindada (V22)
 
 # Core Dash e UI
-dash
-dash-bootstrap-components
+dash==2.17.1
+dash-bootstrap-components==1.6.0
 
-# Backend e IA
-openai
-langchain
-langchain-core              # <- ADICIONADO: Essencial para os novos imports
-langchain-openai
-langchain-community
-langchain-chroma
-langchain-text-splitters
-tiktoken
+# Backend e IA (O Coração do Bob)
+openai==1.35.3
+langchain==0.2.5
+langchain-core==0.2.9
+langchain-openai==0.1.9
+langchain-community==0.2.5
+langchain-chroma==0.1.2       # <- TRAVADO: Conector estável
+chromadb==0.5.3               # <- ADICIONADO: A "Vacina" contra o erro tenants
+langchain-text-splitters==0.2.2
+tiktoken==0.7.0
 python-dotenv
 pandas
 
 # Processamento de Documentos e Dados
-pypdf
+pypdf==4.2.0
 lxml
-requests
+requests==2.32.3
 
 # Banco de Dados
 SQLAlchemy
@@ -27,11 +28,11 @@ SQLAlchemy
 # Cache e Utilitários de Sistema
 cachetools
 diskcache
-psutil                      # <- Importante manter para o Linux (funciona bem lá)
+psutil
 multiprocess
 
 # Agendamento de Tarefas
-apscheduler
+apscheduler==3.10.4
 
 # Fuso Horário
 tzdata
