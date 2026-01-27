@@ -1,23 +1,27 @@
-# requirements.txt - Versão Blindada V23 (Correção de Dependências)
+# requirements.txt - Versão V24 (Fix Proxies Error)
 
 # Core Dash e UI
 dash==2.17.1
 dash-bootstrap-components==1.6.0
 
-# Backend e IA (O Coração do Bob)
+# Backend e IA
 openai==1.35.3
-langchain==0.2.5
-langchain-core==0.2.10        # <- AJUSTADO: Subiu de 0.2.9 para 0.2.10 para aceitar o text-splitters
-langchain-openai==0.1.9
-langchain-community==0.2.5
-langchain-chroma==0.1.2       # Conector estável
-chromadb==0.5.3               # Vacina contra erro tenants
-langchain-text-splitters==0.2.2 # <- TRAVADO: Agora está explícito
+# httpx travado na 0.27.2 para evitar o erro 'proxies' com o LangChain atual
+httpx==0.27.2
 tiktoken==0.7.0
+
+# Suite LangChain (Conjunto Harmonizado V0.2)
+langchain-core==0.2.24        # Atualizado para evitar conflitos
+langchain==0.2.11             # Atualizado
+langchain-community==0.2.10   # Atualizado
+langchain-openai==0.1.17      # Atualizado para melhor suporte ao GPT-4o
+langchain-text-splitters==0.2.2
+langchain-chroma==0.1.2       
+chromadb==0.5.3               
+
+# Utilitários
 python-dotenv
 pandas
-
-# Processamento de Documentos e Dados
 pypdf==4.2.0
 lxml
 requests==2.32.3
@@ -25,16 +29,12 @@ requests==2.32.3
 # Banco de Dados
 SQLAlchemy
 
-# Cache e Utilitários de Sistema
+# Sistema
 cachetools
 diskcache
 psutil
 multiprocess
-
-# Agendamento de Tarefas
 apscheduler==3.10.4
-
-# Fuso Horário
 tzdata
 
 # Autenticação
