@@ -1,6 +1,5 @@
-# # rag_manager.py - VERSÃO V25 (SOFT RESET / PRODUCTION READY)
-# Correção: Substitui 'rm -rf' físico por limpeza lógica via API do ChromaDB
-# Isso previne o erro "Device or resource busy" e a corrupção de tenants.
+# rag_manager.py - VERSÃO V26 (PHOENIX FIX)
+# Correção: Re-inicializa a store após o delete_collection para recriar a estrutura vazia.
 
 import os
 import json
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def get_vector_store():
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    # A inicialização aqui apenas conecta, não cria tabelas ainda se não existirem
+    # A inicialização aqui conecta e prepara o terreno
     return Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embeddings)
 
 def get_retriever():
@@ -96,7 +95,7 @@ def update_feed_status(status_code, message, count=0):
 # --- PROCESSAMENTO PRINCIPAL ---
 
 def process_knowledge_base():
-    print("--- INICIANDO PROCESSAMENTO (V25 SOFT RESET) ---")
+    print("--- INICIANDO PROCESSAMENTO (V26 PHOENIX) ---")
     update_feed_status("processing", "Iniciando leitura e indexação...", 0)
 
     try:
@@ -187,22 +186,22 @@ def process_knowledge_base():
         chunks = text_splitter.split_documents(documents)
         print(f"Chunking final: {len(chunks)} vetores gerados.")
         
-        # --- [CRÍTICO] MUDANÇA V25: SOFT WIPE ---
-        # Em vez de apagar a pasta (que causa erro se o arquivo estiver em uso),
-        # usamos a API do Chroma para resetar a coleção logica.
-        
+        # --- [CRÍTICO] MUDANÇA V26: SOFT WIPE + REINIT ---
         print(f"Conectando ao ChromaDB para atualização...")
         vector_store = get_vector_store()
         
         try:
             print("🧹 Resetando coleção via API (Soft Reset)...")
-            # Isso apaga os dados sem destruir o arquivo físico bloqueado
             vector_store.delete_collection() 
         except Exception as e:
-            # Se a coleção não existir, tudo bem
             print(f"ℹ️ Aviso na limpeza (coleção nova ou vazia): {e}")
 
-        # Gravação no Banco (Re-cria a coleção automaticamente)
+        # [CORREÇÃO V26] Recriar a instância força a criação de uma nova coleção vazia
+        # Isso resolve o erro "Collection not initialized" e permite gravar
+        print("🔄 Reinicializando Store V26 (Phoenix)...")
+        vector_store = get_vector_store() 
+
+        # Gravação no Banco
         print(f"Gravando novos dados no ChromaDB...")
         vector_store.add_documents(chunks)
         
